@@ -49,6 +49,22 @@ theorem Monic.eq_X_add_C (hm : p.Monic) (hnd : p.natDegree = 1) : p = X + C (p.c
 theorem exists_eq_X_add_C_of_natDegree_le_one (h : natDegree p ≤ 1) : ∃ a b, p = C a * X + C b :=
   ⟨p.coeff 1, p.coeff 0, eq_X_add_C_of_natDegree_le_one h⟩
 
+theorem eq_X_sqr_add_X_add_C_of_degree_le_two (h : degree p ≤ 2) :
+    p = C (p.coeff 2) * X ^ 2 + C (p.coeff 1) * X + C (p.coeff 0) :=
+  ext fun
+  | 0 | 1 | 2 => by simp
+  | n + 3 =>
+    by simpa using coeff_eq_zero_of_degree_lt (h.trans_lt (by norm_cast; norm_num))
+
+theorem eq_X_sqr_add_X_add_C_of_natDegree_le_two (h : natDegree p ≤ 2) :
+    p = C (p.coeff 2) * X ^ 2 + C (p.coeff 1) * X + C (p.coeff 0) :=
+  eq_X_sqr_add_X_add_C_of_degree_le_two <| degree_le_of_natDegree_le h
+
+theorem Monic.eq_X_sqr_add_C_mul_X_add_C (hm : p.Monic) (hnd : p.natDegree = 2) :
+    p = X ^ 2 + C (p.coeff 1) * X + C (p.coeff 0) := by
+  rw [← one_mul (X ^ 2), ← C_1, ← hm.coeff_natDegree, hnd,
+    ← eq_X_sqr_add_X_add_C_of_natDegree_le_two hnd.le]
+
 end Semiring
 
 section Semiring
