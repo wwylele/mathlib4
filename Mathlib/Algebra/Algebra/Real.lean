@@ -11,6 +11,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.LinearAlgebra.FiniteDimensional.Defs
 import Mathlib.Data.Real.Sqrt
 import Mathlib.Analysis.Complex.Polynomial.Basic
+import Mathlib.Algebra.QuaternionBasis
 
 /-!
 
@@ -28,102 +29,6 @@ def AlgEquiv.ofLinearEquiv_basis {R : Type*} {A₁ : Type*} {A₂ : Type*}
   simp only [Finsupp.linearCombination_apply, Finsupp.sum, map_sum, Finset.sum_mul_sum,
     smul_mul_smul, map_smul, h]
 
-
-namespace QuaternionAlgebra
-variable {R : Type*} [CommRing R]
-variable (c₁ c₂ c₃ : R)
-
-theorem basisOneIJK_zero : (basisOneIJK c₁ c₂ c₃) 0 = 1 := by
-  unfold basisOneIJK
-  show ⇑(Basis.ofEquivFun (QuaternionAlgebra.linearEquivTuple _ _ _)) _ = _
-  rw [Basis.coe_ofEquivFun]
-  rfl
-
-theorem basisOneIJK_one : (basisOneIJK c₁ c₂ c₃) 1 = ⟨0, 1, 0, 0⟩ := by
-  unfold basisOneIJK
-  show ⇑(Basis.ofEquivFun (QuaternionAlgebra.linearEquivTuple _ _ _)) _ = _
-  rw [Basis.coe_ofEquivFun]
-  rfl
-
-theorem basisOneIJK_two : (basisOneIJK c₁ c₂ c₃) 2 = ⟨0, 0, 1, 0⟩ := by
-  unfold basisOneIJK
-  show ⇑(Basis.ofEquivFun (QuaternionAlgebra.linearEquivTuple _ _ _)) _ = _
-  rw [Basis.coe_ofEquivFun]
-  rfl
-
-theorem basisOneIJK_three : (basisOneIJK c₁ c₂ c₃) 3 = ⟨0, 0, 0, 1⟩ := by
-  unfold basisOneIJK
-  show ⇑(Basis.ofEquivFun (QuaternionAlgebra.linearEquivTuple _ _ _)) _ = _
-  rw [Basis.coe_ofEquivFun]
-  rfl
-
---theorem basisOneIJK_zero_mul
-
-
-end QuaternionAlgebra
-
-namespace Quaternion
-variable (R : Type*) [CommRing R]
-
-
-
-noncomputable
-abbrev basisOneIJK : Basis (Fin 4) R ℍ[R] := QuaternionAlgebra.basisOneIJK (-1) 0 (-1)
-
-theorem basisOneIJK_zero : (basisOneIJK R) 0 = 1 := QuaternionAlgebra.basisOneIJK_zero _ _ _
-
-theorem basisOneIJK_one : (basisOneIJK R) 1 = ⟨0, 1, 0, 0⟩ :=
-  QuaternionAlgebra.basisOneIJK_one _ _ _
-
-theorem basisOneIJK_two : (basisOneIJK R) 2 = ⟨0, 0, 1, 0⟩ :=
-  QuaternionAlgebra.basisOneIJK_two _ _ _
-
-theorem basisOneIJK_three : (basisOneIJK R) 3 = ⟨0, 0, 0, 1⟩ :=
-  QuaternionAlgebra.basisOneIJK_three _ _ _
-
-theorem basisOneIJK00 : basisOneIJK R 0 * basisOneIJK R 0 = basisOneIJK R 0 := by
-  simp [basisOneIJK_zero]
-theorem basisOneIJK01 : basisOneIJK R 0 * basisOneIJK R 1 = basisOneIJK R 1 := by
-  simp [basisOneIJK_zero]
-theorem basisOneIJK02 : basisOneIJK R 0 * basisOneIJK R 2 = basisOneIJK R 2 := by
-  simp [basisOneIJK_zero]
-theorem basisOneIJK03 : basisOneIJK R 0 * basisOneIJK R 3 = basisOneIJK R 3 := by
-  simp [basisOneIJK_zero]
-theorem basisOneIJK10 : basisOneIJK R 1 * basisOneIJK R 0 = basisOneIJK R 1 := by
-  simp [basisOneIJK_zero]
-theorem basisOneIJK11 : basisOneIJK R 1 * basisOneIJK R 1 = -basisOneIJK R 0 := by
-  simp [basisOneIJK_zero, basisOneIJK_one]
-  ext <;> simp
-theorem basisOneIJK12 : basisOneIJK R 1 * basisOneIJK R 2 = basisOneIJK R 3 := by
-  simp [basisOneIJK_one, basisOneIJK_two, basisOneIJK_three]
-  ext <;> simp
-theorem basisOneIJK13 : basisOneIJK R 1 * basisOneIJK R 3 = -basisOneIJK R 2 := by
-  simp [basisOneIJK_one, basisOneIJK_two, basisOneIJK_three]
-  ext <;> simp
-theorem basisOneIJK20 : basisOneIJK R 2 * basisOneIJK R 0 = basisOneIJK R 2 := by
-  simp [basisOneIJK_zero]
-theorem basisOneIJK21 : basisOneIJK R 2 * basisOneIJK R 1 = -basisOneIJK R 3 := by
-  simp [basisOneIJK_one, basisOneIJK_two, basisOneIJK_three]
-  ext <;> simp
-theorem basisOneIJK22 : basisOneIJK R 2 * basisOneIJK R 2 = -basisOneIJK R 0 := by
-  simp [basisOneIJK_zero, basisOneIJK_two]
-  ext <;> simp
-theorem basisOneIJK23 : basisOneIJK R 2 * basisOneIJK R 3 = basisOneIJK R 1 := by
-  simp [basisOneIJK_one, basisOneIJK_two, basisOneIJK_three]
-  ext <;> simp
-theorem basisOneIJK30 : basisOneIJK R 3 * basisOneIJK R 0 = basisOneIJK R 3 := by
-  simp [basisOneIJK_zero]
-theorem basisOneIJK31 : basisOneIJK R 3 * basisOneIJK R 1 = basisOneIJK R 2 := by
-  simp [basisOneIJK_one, basisOneIJK_two, basisOneIJK_three]
-  ext <;> simp
-theorem basisOneIJK32 : basisOneIJK R 3 * basisOneIJK R 2 = -basisOneIJK R 1 := by
-  simp [basisOneIJK_one, basisOneIJK_two, basisOneIJK_three]
-  ext <;> simp
-theorem basisOneIJK33 : basisOneIJK R 3 * basisOneIJK R 3 = -basisOneIJK R 0 := by
-  simp [basisOneIJK_zero, basisOneIJK_three]
-  ext <;> simp
-
-end Quaternion
 
 open Quaternion
 
@@ -561,7 +466,7 @@ theorem circle_real {x y : D} (hx : x ∈ PurelyImaginary D) (hy : y ∈ PurelyI
   simp only [map_sub, hxyxy, sq, mul_add, add_mul, hxx, hyy]
   abel
 
-set_option maxHeartbeats 800000
+set_option maxHeartbeats 400000
 
 theorem frobenius_theorem (D : Type) [DivisionRing D] [Algebra ℝ D] [FiniteDimensional ℝ D] :
     Nonempty (D ≃ₐ[ℝ] ℝ) ∨ Nonempty (D ≃ₐ[ℝ] ℂ) ∨ Nonempty (D ≃ₐ[ℝ] ℍ[ℝ]) := by
@@ -980,112 +885,56 @@ theorem frobenius_theorem (D : Type) [DivisionRing D] [Algebra ℝ D] [FiniteDim
         simpa [hk0] using hek'
 
       let basis := Basis.mk hindep hspan
-      have basis00 : basis 0 * basis 0 = basis 0 := by simp [basis, basisSet]
-      have basis01 : basis 0 * basis 1 = basis 1 := by simp [basis, basisSet]
-      have basis02 : basis 0 * basis 2 = basis 2 := by simp [basis, basisSet]
-      have basis03 : basis 0 * basis 3 = basis 3 := by simp [basis, basisSet]
-      have basis10 : basis 1 * basis 0 = basis 1 := by simp [basis, basisSet]
-      have basis11 : basis 1 * basis 1 = -basis 0 := by simp [basis, basisSet, ← sq, hi]
-      have basis12 : basis 1 * basis 2 = basis 3 := by simp [basis, basisSet, hij]
-      have basis13 : basis 1 * basis 3 = -basis 2 := by simp [basis, basisSet, hik]
-      have basis20 : basis 2 * basis 0 = basis 2 := by simp [basis, basisSet]
-      have basis21 : basis 2 * basis 1 = -basis 3 := by simp [basis, basisSet, hji]
-      have basis22 : basis 2 * basis 2 = -basis 0 := by simp [basis, basisSet, ← sq, hj]
-      have basis23 : basis 2 * basis 3 = basis 1 := by simp [basis, basisSet, hjk]
-      have basis30 : basis 3 * basis 0 = basis 3 := by simp [basis, basisSet]
-      have basis31 : basis 3 * basis 1 = basis 2 := by simp [basis, basisSet, hki]
-      have basis32 : basis 3 * basis 2 = -basis 1 := by simp [basis, basisSet, hkj]
-      have basis33 : basis 3 * basis 3 = -basis 0 := by simp [basis, basisSet, ← sq, hk]
 
-
+      let quaternionBasis : QuaternionAlgebra.Basis D (-1 : ℝ) 0 (-1) := {
+        i := i
+        j := j
+        k := k
+        i_mul_i := by simp [← sq, hi]
+        j_mul_j := by simp [← sq, hj]
+        i_mul_j := by simp [hij]
+        j_mul_i := by simp [hji]
+      }
       right
       right
-
-      have q0 : basisOneIJK ℝ 0 = 1 := by
-        unfold basisOneIJK QuaternionAlgebra.basisOneIJK
-        show ⇑(Basis.ofEquivFun (QuaternionAlgebra.linearEquivTuple (-1) 0 (-1))) 0 = 1
-        rw [Basis.coe_ofEquivFun]
-        rfl
-
-      let linEquiv : D ≃ₗ[ℝ] ℍ[ℝ] := Basis.equiv basis (basisOneIJK ℝ) (Equiv.refl _)
-      refine Nonempty.intro (AlgEquiv.ofLinearEquiv_basis linEquiv ?_ basis ?_)
-      · rw [show (1 : D) = basis 0 by
-          unfold basis basisSet;
-          simp
-        ]
-        rw [Basis.equiv_apply basis 0 _ _]
-        simp only [Nat.succ_eq_add_one, Nat.reduceAdd, Fin.isValue, Equiv.refl_apply]
-        rw [q0]
-      ·
-        intro i j
-        rw [Basis.equiv_apply basis i, Basis.equiv_apply basis j]
+      refine Nonempty.intro ?_
+      symm
+      apply AlgEquiv.ofBijective (quaternionBasis.liftHom)
+      constructor
+      · intro x y h
+        have h : algebraMap ℝ _ x.re + x.imI • i + x.imJ • j + x.imK • k
+            = algebraMap ℝ _ y.re + y.imI • i + y.imJ • j + y.imK • k := h
+        have h : x.re • (1 : D) + x.imI • i + x.imJ • j + x.imK • k
+            = y.re • (1 : D) + y.imI • i + y.imJ • j + y.imK • k := by
+          rw [Algebra.smul_def x.re, Algebra.smul_def y.re, mul_one, mul_one]
+          exact h
+        have h : Fintype.linearCombination ℝ basis ![x.re, x.imI, x.imJ, x.imK]
+            = Fintype.linearCombination ℝ basis ![y.re, y.imI, y.imJ, y.imK] := by
+          rw [Fintype.linearCombination_apply, Fintype.linearCombination_apply]
+          rw [Fin.sum_univ_four, Fin.sum_univ_four]
+          unfold basis
+          simpa using h
+        rw [← Finsupp.linearCombination_eq_fintype_linearCombination] at h
+        simp_rw [LinearMap.comp_apply] at h
+        apply_fun basis.repr at h
+        simp_rw [Basis.repr_linearCombination] at h
+        have h : ![x.re, x.imI, x.imJ, x.imK] = ![y.re, y.imI, y.imJ, y.imK] := by simpa using h
+        ext
+        · exact congrFun h 0
+        · exact congrFun h 1
+        · exact congrFun h 2
+        · exact congrFun h 3
+      · intro a
+        use ⟨basis.repr a 0, basis.repr a 1, basis.repr a 2, basis.repr a 3⟩
+        show algebraMap ℝ _ (basis.repr a 0) + (basis.repr a 1) • i
+            + (basis.repr a 2) • j  + (basis.repr a 3) • k = a
+        suffices (basis.repr a 0) • 1 + (basis.repr a 1) • i
+            + (basis.repr a 2) • j  + (basis.repr a 3) • k = a by
+          rw [Algebra.smul_def (basis.repr a 0), mul_one] at this
+          exact this
+        suffices Fintype.linearCombination ℝ basis (basis.repr a) = a by
+          rw [Fintype.linearCombination_apply, Fin.sum_univ_four] at this
+          unfold basis at this
+          simpa using this
+        rw [← Finsupp.linearCombination_eq_fintype_linearCombination]
         simp
-        fin_cases i
-        · fin_cases j
-          · rw [show basis _ * basis _ = _ by exact basis00]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK00 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis01]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK01 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis02]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK02 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis03]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK03 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-        · fin_cases j
-          · rw [show basis _ * basis _ = _ by exact basis10]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK10 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis11]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK11 ℝ]
-            rw [map_neg, Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis12]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK12 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis13]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK13 ℝ]
-            rw [map_neg, Basis.equiv_apply basis]
-            rfl
-        · fin_cases j
-          · rw [show basis _ * basis _ = _ by exact basis20]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK20 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis21]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK21 ℝ]
-            rw [map_neg, Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis22]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK22 ℝ]
-            rw [map_neg, Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis23]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK23 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-        · fin_cases j
-          · rw [show basis _ * basis _ = _ by exact basis30]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK30 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis31]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK31 ℝ]
-            rw [Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis32]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK32 ℝ]
-            rw [map_neg, Basis.equiv_apply basis]
-            rfl
-          · rw [show basis _ * basis _ = _ by exact basis33]
-            rw [show basisOneIJK ℝ _ * basisOneIJK ℝ _ = _ by exact basisOneIJK33 ℝ]
-            rw [map_neg, Basis.equiv_apply basis]
-            rfl
