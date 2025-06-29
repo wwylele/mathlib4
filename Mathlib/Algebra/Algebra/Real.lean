@@ -466,7 +466,542 @@ theorem circle_real {x y : D} (hx : x ∈ PurelyImaginary D) (hy : y ∈ PurelyI
   simp only [map_sub, hxyxy, sq, mul_add, add_mul, hxx, hyy]
   abel
 
-set_option maxHeartbeats 400000
+section ImaginaryNotBot
+
+variable [hbot : Fact (PurelyImaginary D ≠ ⊥)]
+
+
+theorem exists_i :
+    ∃ i ∈ PurelyImaginary D, i ^ 2 = algebraMap ℝ D (-1) := by
+  obtain ⟨u, hu, hu0⟩ := (Submodule.ne_bot_iff _).mp hbot.out
+  obtain ⟨u', hu', huu⟩ := (mem_purelyImaginary_iff D).mp hu
+  let i := (Real.sqrt (-u'))⁻¹ • u
+  have hi : i ^ 2 = algebraMap ℝ D (-1) := by
+    rw [smul_pow, ← huu, Algebra.smul_def, ← map_mul, inv_pow, Real.sq_sqrt (by simpa using hu')]
+    rw [inv_neg, neg_mul, inv_mul_cancel₀ ?_]
+    contrapose! hu0
+    rw [hu0] at huu
+    exact pow_eq_zero (n := 2) (by simpa using huu.symm)
+  have himem : i ∈ PurelyImaginary D := Submodule.smul_mem _ _ hu
+  exact ⟨i, himem, hi⟩
+
+variable {D} in
+noncomputable
+def i := (exists_i D).choose
+
+variable {D} in
+theorem hi : i * i = algebraMap ℝ D (-1) := (sq (i : D)) ▸ (exists_i D).choose_spec.2
+
+variable {D} in
+theorem himem : i ∈ PurelyImaginary D := (exists_i D).choose_spec.1
+
+theorem equiv_c (hspan : PurelyImaginary D = ℝ ∙ i) : Nonempty (D ≃ₐ[ℝ] ℂ) := by
+  obtain hcompl := compl D
+  rw [hspan] at hcompl
+  let basisSet := ![1, (i : D)]
+  have honespan : ((⊥ : Subalgebra ℝ D).toSubmodule) = Submodule.span ℝ {1} := by
+    ext x
+    rw [Submodule.mem_span_singleton]
+    rw [Subalgebra.mem_toSubmodule, Algebra.mem_bot, Set.mem_range]
+    constructor
+    · intro ⟨a, ha⟩
+      use a
+      rw [← ha]
+      rw [Algebra.smul_def, mul_one]
+    · intro ⟨a, ha⟩
+      use a
+      rw [← ha]
+      rw [Algebra.smul_def, mul_one]
+  have hindep : LinearIndependent ℝ basisSet := by
+    rw [LinearIndependent.pair_iff' (by simp)]
+    intro a
+    by_contra!
+    have hi0 : i ∈ ((⊥ : Subalgebra ℝ D).toSubmodule) := by
+      rw [← this]
+      apply Submodule.smul_mem
+      exact Subalgebra.one_mem _
+    have hi1 : (i : D) ∈ (Submodule.span ℝ {i}) := by simp
+    have hizero := Submodule.disjoint_def.mp hcompl.disjoint i hi0 hi1
+    obtain hi := hi (D := D)
+    rw [hizero] at hi
+    simp at hi
+
+  have hspan : ⊤ ≤ Submodule.span ℝ (Set.range basisSet) := by
+    rw [Submodule.span_range_eq_iSup]
+    rw [top_le_iff]
+    convert hcompl.sup_eq_top
+    unfold basisSet
+    rw [← iSup_univ, honespan]
+    convert iSup_pair (a := 0) (b := 1) (f := fun n ↦ Submodule.span ℝ {![1, (i : D)] n})
+    ext x
+    fin_cases x <;> simp
+
+  let basis := Basis.mk hindep hspan
+
+  let linEquiv := Basis.equiv basis Complex.basisOneI (Equiv.refl _)
+  refine Nonempty.intro (AlgEquiv.ofLinearEquiv_basis linEquiv ?_ basis ?_)
+  · rw [show (1 : D) = basis 0 by unfold basis basisSet; simp]
+    rw [show (1 : ℂ) = Complex.basisOneI 0 by simp]
+    unfold linEquiv
+    simp
+  · have basis00 : basis 0 * basis 0 = basis 0 := by
+      simp [basis, basisSet]
+    have basis01 : basis 0 * basis 1 = basis 1 := by
+      simp [basis, basisSet]
+    have basis10 : basis 1 * basis 0 = basis 1 := by
+      simp [basis, basisSet]
+    have basis11 : basis 1 * basis 1 = -basis 0 := by
+      suffices (i : D) * i = -1 by simpa [basis, basisSet] using this
+      rw [hi, map_neg]
+      simp
+
+    intro i j
+    fin_cases i <;> fin_cases j <;> unfold linEquiv <;>
+      simp [basis00, basis01, basis10, basis11]
+
+section ImaginaryMore
+
+variable [hspan : Fact (PurelyImaginary D ≠ ℝ ∙ i)]
+
+theorem exists_w : ∃ w ∈ PurelyImaginary D, w ∉ Submodule.span ℝ {i} := by
+  have hle : Submodule.span ℝ {i} ≤ PurelyImaginary D :=
+    (Submodule.span_singleton_le_iff_mem i (PurelyImaginary D)).mpr himem
+  have hlt : Submodule.span ℝ {i} < PurelyImaginary D := by
+    exact lt_of_le_of_ne hle (hspan.out ·.symm)
+  exact Set.exists_of_ssubset hlt
+
+variable {D} in
+noncomputable
+def w := (exists_w D).choose
+
+variable {D} in
+theorem hwmem : w ∈ PurelyImaginary D := (exists_w D).choose_spec.1
+
+variable {D} in
+theorem hwnmem : w ∉ Submodule.span ℝ {(i : D)} := (exists_w D).choose_spec.2
+
+variable {D} in
+theorem hJK : ((i : D) * w * i + w) ^ 2 = (i * w - w * i) ^ 2 := by
+  obtain ⟨w', hw'0, hw'⟩ := (mem_purelyImaginary_iff D).mp hwmem
+  have hiw := calc
+    i * w * i * (i * w * i) = i * w * (i * i) * w * i := by
+      group
+    _ = i * w * (algebraMap ℝ D (-1)) * w * i := by rw [hi]
+    _ = (algebraMap ℝ D (-1)) * i * w ^ 2 * i := by
+      simp_rw [sq, ← Algebra.commutes]
+      group
+    _ = (algebraMap ℝ D (-1)) * i * (algebraMap ℝ D w') * i := by rw [hw']
+    _ = (algebraMap ℝ D w') * (algebraMap ℝ D (-1)) * (i * i) := by
+      simp_rw [← Algebra.commutes w']
+      group
+    _ = (algebraMap ℝ D w') * (algebraMap ℝ D (-1)) * (algebraMap ℝ D (-1)) := by rw [hi]
+    _ = (algebraMap ℝ D w') * (algebraMap ℝ D 1) := by
+      rw [mul_assoc, ← map_mul, neg_one_mul, neg_neg]
+    _ = (algebraMap ℝ D w') := by simp
+    _ = w ^ 2 := hw'
+  have hiw' := calc
+    w * i * (i * w) = w * (i * i) * w := by
+      group
+    _ = w * (algebraMap ℝ D (-1)) * w := by rw [hi]
+    _ = (algebraMap ℝ D (-1)) * w ^ 2 := by
+      simp_rw [sq, ← Algebra.commutes]
+      group
+    _ = - w ^ 2 := by simp
+  have hiw'' := calc
+    i * w * (w * i) = i * w ^ 2 * i := by
+      rw [sq]
+      group
+    _ = i * (algebraMap ℝ D w') * i := by rw [hw']
+    _ = (algebraMap ℝ D w') * (i * i) := by
+      simp_rw [← Algebra.commutes]
+      group
+    _ = (algebraMap ℝ D w') * (algebraMap ℝ D (-1)) := by rw [hi]
+    _ = w ^ 2 * (algebraMap ℝ D (-1)) := by rw [hw']
+    _ = - w ^ 2 := by simp
+
+  simp_rw [sq, mul_add, add_mul, mul_sub, sub_mul]
+  rw [hiw, hiw', hiw'']
+  simp_rw [sq]
+  group
+  abel
+
+variable {D} in
+noncomputable
+def J : D := i * w * i + w
+
+variable {D} in
+noncomputable
+def K : D := i * w - w * i
+
+variable {D} in
+theorem hJmem : J ∈ PurelyImaginary D := by
+  refine Submodule.add_mem _ ?_ hwmem
+  exact mul_mul_mem D himem hwmem
+
+variable {D} in
+theorem hKmem : K ∈ PurelyImaginary D := by
+  obtain hJmem := hJmem (D := D)
+  rw [mem_purelyImaginary_iff] at ⊢ hJmem
+  unfold K
+  unfold J at hJmem
+  rw [← hJK]
+  exact hJmem
+
+variable {D} in
+noncomputable def J' := ((mem_purelyImaginary_iff D).mp (hJmem (D := D))).choose
+
+variable {D} in
+theorem hJ'0 : (J' (D := D)) ≤ 0 := ((mem_purelyImaginary_iff D).mp (hJmem (D := D))).choose_spec.1
+
+variable {D} in
+theorem hJ' : (algebraMap ℝ D) (J' (D := D)) = J ^ 2 :=
+  ((mem_purelyImaginary_iff D).mp (hJmem (D := D))).choose_spec.2
+
+variable {D} in
+noncomputable
+def j : D := (Real.sqrt (-J' (D := D)))⁻¹ • J
+
+variable {D} in
+noncomputable
+def k : D := (Real.sqrt (-J' (D := D)))⁻¹ • K
+
+variable {D} in
+theorem hjmem : j ∈ PurelyImaginary D := Submodule.smul_mem _ _ hJmem
+
+variable {D} in
+theorem hkmem : k ∈ PurelyImaginary D := Submodule.smul_mem _ _ hKmem
+
+variable {D} in
+theorem hj : j * j = algebraMap ℝ D (-1) := by
+  have hJ0 : (J : D) ≠ 0 := by
+    obtain ⟨s, hs⟩ := circle_real D hwmem himem
+    have hJeq : (J : D) = (2 : ℝ) • w + s • i := by
+      symm
+      calc
+        (2 : ℝ) • w + s • i = (2 : ℝ) • w + (w * i + i * w) * i := by rw [Algebra.smul_def s, hs]
+        _ = (2 : ℝ) • w + w * (i * i) + i * w * i := by
+          rw [add_mul]
+          group
+          abel
+        _ = (2 : ℝ) • w + (-1 : ℝ) • w + i * w * i := by
+          rw [hi]
+          simp
+        _ = J := by
+          rw [← add_smul, add_comm _ (i * w * i)]
+          norm_num
+          rfl
+    obtain hwnmem := hwnmem (D := D)
+    contrapose! hwnmem with hJ0
+    rw [hJ0] at hJeq
+    have hwsi : - (s • (i : D)) = (2 : ℝ) • w := neg_eq_of_add_eq_zero_left hJeq.symm
+    rw [Submodule.mem_span_singleton]
+    use -s / 2
+    rw [div_eq_inv_mul, ← smul_smul, neg_smul, hwsi, smul_smul, inv_mul_cancel₀ (by simp),
+      one_smul]
+
+  rw [← sq, j, smul_pow, ← hJ', Algebra.smul_def, ← map_mul, inv_pow,
+    Real.sq_sqrt (by simpa using hJ'0)]
+  rw [inv_neg, neg_mul, inv_mul_cancel₀ ?_]
+  contrapose! hJ0
+  obtain hJ' := hJ' (D := D)
+  rw [hJ0] at hJ'
+  exact pow_eq_zero (n := 2) (by simpa using hJ'.symm)
+
+variable {D} in
+theorem hk : k * k = algebraMap ℝ D (-1) := by
+  rw [← sq, k, smul_pow, K, ← hJK, ← smul_pow, sq]
+  exact hj
+
+variable {D} in
+theorem hij : (i * j : D) = k := calc
+  i * j = (Real.sqrt (-J' (D := D)))⁻¹ • (i * (i * w * i + w)) := by apply mul_smul_comm
+  _ = (Real.sqrt (-J' (D := D)))⁻¹ • (i * i * w * i + i * w) := by
+    rw [mul_add]
+    group
+  _ = (Real.sqrt (-J' (D := D)))⁻¹ • (-(w * i) + i * w : D) := by
+    rw [hi]
+    simp
+  _ = (Real.sqrt (-J' (D := D)))⁻¹ • (i * w - w * i) := by rw [neg_add_eq_sub]
+  _ = k := rfl
+
+variable {D} in
+theorem hji : (j * i : D) = -k := calc
+  j * i = (Real.sqrt (-J' (D := D)))⁻¹ • ((i * w * i + w) * i) := by apply smul_mul_assoc
+  _ = (Real.sqrt (-J' (D := D)))⁻¹ • (i * w * (i * i) + w * i) := by
+    rw [add_mul]
+    group
+  _ = (Real.sqrt (-J' (D := D)))⁻¹ • (- (i * w) + w * i : D) := by
+    rw [hi]
+    simp
+  _ = -((Real.sqrt (-J' (D := D)))⁻¹ • (i * w - w * i)) := by
+    rw [← smul_neg (Real.sqrt (-J' (D := D)))⁻¹, neg_sub, neg_add_eq_sub]
+  _ = -k := rfl
+
+variable {D} in
+theorem hjk : (j * k : D) = i := calc
+  (j * k : D) = -(j * (-k)) := by simp
+  _ = -(j * j * i) := by
+    rw [← hji]
+    group
+  _ = -(algebraMap ℝ D (-1) * i) := by rw [hj]
+  _ = i := by simp
+
+variable {D} in
+theorem hkj : (k * j : D) = -i := calc
+  (k * j : D) = i * (j * j) := by
+    rw [← hij]
+    group
+  _ = i * algebraMap ℝ D (-1) := by rw [hj]
+  _ = -i := by simp
+
+variable {D} in
+theorem hki : (k * i : D) = j := calc
+  (k * i : D) = -((-k) * i) := by simp
+  _ = -(j * (i * i)) := by
+    rw [← hji]
+    group
+  _ = -(j * algebraMap ℝ D (-1)) := by rw [hi]
+  _ = j := by simp
+
+variable {D} in
+theorem hik : (i * k : D) = -j := calc
+  (i * k : D) = (i * i) * j := by
+    rw [← hij]
+    group
+  _ = algebraMap ℝ D (-1) * j := by rw [hi]
+  _ = -j := by simp
+
+variable {D} in
+theorem hindep : LinearIndependent ℝ ![(1 : D), i, j, k] := by
+
+  have hnorm (a b c d : ℝ) : (a • 1 + b • i + c • j + d • k) *
+      (a • 1 - b • i - c • j - d • k) =
+      algebraMap ℝ D (a ^ 2 + b ^ 2 + c ^ 2 + d ^ 2) := by
+    simp_rw [sq, add_mul, mul_sub, smul_mul_smul, hi, hj, hk, hji, hij, hjk, hkj, hki, hik]
+    simp_rw [mul_comm b a, mul_comm c a, mul_comm d a, mul_comm c b, mul_comm d b, mul_comm d c]
+    simp_rw [map_add]
+    rw [Algebra.algebraMap_eq_smul_one (a * a)]
+    rw [Algebra.algebraMap_eq_smul_one (b * b)]
+    rw [Algebra.algebraMap_eq_smul_one (c * c)]
+    rw [Algebra.algebraMap_eq_smul_one (d * d)]
+    simp
+    abel
+
+  rw [Fintype.linearIndependent_iff']
+  rw [← le_bot_iff]
+  intro x hx
+  rw [LinearMap.mem_ker] at hx
+  suffices x = 0 by simpa using this
+  have hx : ∑ n, x n • ![(1 : D), i, j, k] n = 0 := by simpa using hx
+  have h0 : x 0 • (1 : D) + x 1 • i + x 2 • j + x 3 • k = 0 := by
+    convert hx
+    symm
+    apply Fin.sum_univ_four
+  have h0 : algebraMap ℝ D (x 0 ^ 2 + x 1 ^ 2 + x 2 ^ 2 + x 3 ^ 2) = 0 := by
+    rw [← hnorm, h0]
+    simp
+  have h0 : x 0 ^ 2 + x 1 ^ 2 + x 2 ^ 2 + x 3 ^ 2 = 0 := by
+    apply FaithfulSMul.algebraMap_injective ℝ D
+    simpa using h0
+  have h0 : ∑ n : Fin 4, (x n) ^ 2 = 0 := by
+    convert h0
+    apply Fin.sum_univ_four
+  rw [Fintype.sum_eq_zero_iff_of_nonneg (by
+    rw [Pi.le_def]
+    intro n
+    simpa using sq_nonneg (x n))] at h0
+  ext n
+  simpa using congrFun h0 n
+
+variable {D} in
+theorem hSpan : ⊤ ≤ Submodule.span ℝ (Set.range ![(1 : D), i, j, k]) := by
+  have hcii : circle i i = algebraMap ℝ D (-2) := by
+    unfold circle
+    simp_rw [hi]
+    rw [← map_add]
+    norm_num
+
+  have hcjj : circle j j = algebraMap ℝ D (-2) := by
+    unfold circle
+    simp_rw [hj]
+    rw [← map_add]
+    norm_num
+
+  have hckk : circle k k = algebraMap ℝ D (-2) := by
+    unfold circle
+    simp_rw [hk]
+    rw [← map_add]
+    norm_num
+
+  have hcij : circle (i : D) j = 0 := by
+    unfold circle
+    rw [hij, hji]
+    simp
+
+  have hcji : circle (j : D) i = 0 := by
+    unfold circle
+    rw [hij, hji]
+    simp
+
+  have hcjk : circle (j : D) k = 0 := by
+    unfold circle
+    rw [hjk, hkj]
+    simp
+
+  have hckj : circle (k : D) j = 0 := by
+    unfold circle
+    rw [hjk, hkj]
+    simp
+
+  have hcik : circle (i : D) k = 0 := by
+    unfold circle
+    rw [hik, hki]
+    simp
+
+  have hcki : circle (k : D) i = 0 := by
+    unfold circle
+    rw [hik, hki]
+    simp
+
+  intro v _
+  refine (Submodule.mem_span_range_iff_exists_fun ℝ).mpr ?_
+  obtain ⟨v0, hv0, v123, hv123, hv⟩ := (Submodule.sup_eq_top_iff _ _).mp (compl D).sup_eq_top v
+  obtain ⟨x0, h0⟩ := Set.mem_range.mp <| Algebra.mem_bot.mp hv0
+  obtain ⟨x1, h1⟩ := circle_real D hv123 himem
+  obtain ⟨x2, h2⟩ := circle_real D hv123 hjmem
+  obtain ⟨x3, h3⟩ := circle_real D hv123 hkmem
+  use ![x0, -2⁻¹ * x1, -2⁻¹ * x2, -2⁻¹ * x3]
+  rw [Fin.sum_univ_four]
+  suffices x0 • 1 + -((2⁻¹ * x1) • i) + -((2⁻¹ * x2) • j) + -((2⁻¹ * x3) • k) = v by
+    simpa using this
+  simp_rw [← smul_smul]
+  rw [Algebra.smul_def x0, Algebra.smul_def x1, Algebra.smul_def x2, Algebra.smul_def x3]
+  rw [h0, h1, h2, h3, hv]
+  rw [add_assoc, add_assoc, mul_one]
+  apply add_left_cancel_iff.mpr
+  let e := (2 : ℝ) • v123 +
+    (circle v123 i) * i + (circle v123 j) * j + (circle v123 k) * k
+  suffices e = 0 by
+    unfold e at this
+    rw [add_assoc, add_assoc, add_comm ((2 : ℝ) • v123), ← neg_eq_iff_add_eq_zero] at this
+    rw [← inv_smul_eq_iff₀ (by simp)] at this
+    simp only [smul_neg, smul_add] at this
+    convert this using 1
+    abel
+  have hei : circle e i = 0 := by
+    unfold e
+    simp only [circle_right_distrib, ← h1, ← h2, ← h3, ← Algebra.smul_def, circle_left_smul,
+      hcii, hcji, hcki, smul_zero, add_zero]
+    simp_rw [Algebra.smul_def, ← map_mul, ← map_add]
+    suffices 2 * x1 + x1 * -2 = 0 by
+      rw [this]
+      simp
+    rw [mul_comm x1, neg_mul, ← sub_eq_add_neg, sub_self]
+
+  have hej : circle e j = 0 := by
+    unfold e
+    simp only [circle_right_distrib, ← h1, ← h2, ← h3, ← Algebra.smul_def, circle_left_smul,
+      hcjj, hcij, hckj, smul_zero, add_zero]
+    simp_rw [Algebra.smul_def, ← map_mul, ← map_add]
+    suffices 2 * x2 + x2 * -2 = 0 by
+      rw [this]
+      simp
+    rw [mul_comm x2, neg_mul, ← sub_eq_add_neg, sub_self]
+
+  have hek : circle e k = 0 := by
+    unfold e
+    simp only [circle_right_distrib, ← h1, ← h2, ← h3, ← Algebra.smul_def, circle_left_smul,
+      hckk, hcik, hcjk, smul_zero, add_zero]
+    simp_rw [Algebra.smul_def, ← map_mul, ← map_add]
+    suffices 2 * x3 + x3 * -2 = 0 by
+      rw [this]
+      simp
+    rw [mul_comm x3, neg_mul, ← sub_eq_add_neg, sub_self]
+
+  have := calc
+    e * k = e * i * j := by
+      rw [← hij]
+      group
+    _ = (-(i * e)) * j := by
+      congr 1
+      apply (neg_eq_iff_add_eq_zero.mpr ?_).symm
+      rw [add_comm]
+      exact hei
+    _ = i * (-(e * j)) := by
+      simp only [neg_mul, mul_neg, neg_inj]
+      group
+    _ = i * j * e := by
+      rw [neg_eq_iff_add_eq_zero.mpr hej]
+      group
+    _ = k * e := by rw [hij]
+
+  have hek' : e * k + k * e = 0 := hek
+  rw [this, ← two_smul ℝ, smul_eq_zero, mul_eq_zero] at hek'
+  have hk0 : (k : D) ≠ 0 := by
+    obtain hk := hk (D := D)
+    contrapose! hk
+    rw [hk]
+    simp
+  simpa [hk0] using hek'
+
+theorem iso_h : Nonempty (D ≃ₐ[ℝ] ℍ[ℝ]) := by
+  let basisSet := ![(1 : D), i, j, k]
+  let basis := Basis.mk (hindep (D := D)) hSpan
+
+  let quaternionBasis : QuaternionAlgebra.Basis D (-1 : ℝ) 0 (-1) := {
+    i := i
+    j := j
+    k := k
+    i_mul_i := by simp [hi]
+    j_mul_j := by simp [hj]
+    i_mul_j := by simp [hij]
+    j_mul_i := by simp [hji]
+  }
+  refine Nonempty.intro ?_
+  symm
+  apply AlgEquiv.ofBijective (quaternionBasis.liftHom)
+  constructor
+  · intro x y h
+    have h : algebraMap ℝ _ x.re + x.imI • (i : D) + x.imJ • j + x.imK • k
+        = algebraMap ℝ _ y.re + y.imI • i + y.imJ • j + y.imK • k := h
+    have h : x.re • (1 : D) + x.imI • i + x.imJ • j + x.imK • k
+        = y.re • (1 : D) + y.imI • i + y.imJ • j + y.imK • k := by
+      rw [Algebra.smul_def x.re, Algebra.smul_def y.re, mul_one, mul_one]
+      exact h
+    have h : Fintype.linearCombination ℝ basis ![x.re, x.imI, x.imJ, x.imK]
+        = Fintype.linearCombination ℝ basis ![y.re, y.imI, y.imJ, y.imK] := by
+      rw [Fintype.linearCombination_apply, Fintype.linearCombination_apply]
+      rw [Fin.sum_univ_four, Fin.sum_univ_four]
+      unfold basis
+      simpa using h
+    rw [← Finsupp.linearCombination_eq_fintype_linearCombination] at h
+    simp_rw [LinearMap.comp_apply] at h
+    apply_fun basis.repr at h
+    simp_rw [Basis.repr_linearCombination] at h
+    have h : ![x.re, x.imI, x.imJ, x.imK] = ![y.re, y.imI, y.imJ, y.imK] := by simpa using h
+    ext
+    · exact congrFun h 0
+    · exact congrFun h 1
+    · exact congrFun h 2
+    · exact congrFun h 3
+  · intro a
+    use ⟨basis.repr a 0, basis.repr a 1, basis.repr a 2, basis.repr a 3⟩
+    show algebraMap ℝ _ (basis.repr a 0) + (basis.repr a 1) • i
+        + (basis.repr a 2) • j  + (basis.repr a 3) • k = a
+    suffices (basis.repr a 0) • 1 + (basis.repr a 1) • i
+        + (basis.repr a 2) • j  + (basis.repr a 3) • k = a by
+      rw [Algebra.smul_def (basis.repr a 0), mul_one] at this
+      exact this
+    suffices Fintype.linearCombination ℝ basis (basis.repr a) = a by
+      rw [Fintype.linearCombination_apply, Fin.sum_univ_four] at this
+      unfold basis at this
+      simpa using this
+    rw [← Finsupp.linearCombination_eq_fintype_linearCombination]
+    simp
+
+end ImaginaryMore
+
+end ImaginaryNotBot
 
 theorem frobenius_theorem (D : Type) [DivisionRing D] [Algebra ℝ D] [FiniteDimensional ℝ D] :
     Nonempty (D ≃ₐ[ℝ] ℝ) ∨ Nonempty (D ≃ₐ[ℝ] ℂ) ∨ Nonempty (D ≃ₐ[ℝ] ℍ[ℝ]) := by
@@ -479,462 +1014,12 @@ theorem frobenius_theorem (D : Type) [DivisionRing D] [Algebra ℝ D] [FiniteDim
       ((Subalgebra.equivOfEq _ _ htop).trans Subalgebra.topEquiv).symm.trans (Algebra.botEquiv ℝ D)
     left
     exact Nonempty.intro hequiv
-  · obtain ⟨u, hu, hu0⟩ := (Submodule.ne_bot_iff _).mp hbot
-    obtain ⟨u', hu', huu⟩ := (mem_purelyImaginary_iff D).mp hu
-    let i := (Real.sqrt (-u'))⁻¹ • u
-    have hi : i ^ 2 = algebraMap ℝ D (-1) := by
-      rw [smul_pow, ← huu, Algebra.smul_def, ← map_mul, inv_pow, Real.sq_sqrt (by simpa using hu')]
-      rw [inv_neg, neg_mul, inv_mul_cancel₀ ?_]
-      contrapose! hu0
-      rw [hu0] at huu
-      exact pow_eq_zero (n := 2) (by simpa using huu.symm)
-
+  · have : Fact (PurelyImaginary D ≠ ⊥) := ⟨hbot⟩
     by_cases hspan : PurelyImaginary D = ℝ ∙ i
-    · rw [hspan] at hcompl
-      let basisSet := ![1, i]
-      have honespan : ((⊥ : Subalgebra ℝ D).toSubmodule) = Submodule.span ℝ {1} := by
-        ext x
-        rw [Submodule.mem_span_singleton]
-        rw [Subalgebra.mem_toSubmodule, Algebra.mem_bot, Set.mem_range]
-        constructor
-        · intro ⟨a, ha⟩
-          use a
-          rw [← ha]
-          rw [Algebra.smul_def, mul_one]
-        · intro ⟨a, ha⟩
-          use a
-          rw [← ha]
-          rw [Algebra.smul_def, mul_one]
-      have hindep : LinearIndependent ℝ basisSet := by
-        rw [LinearIndependent.pair_iff' (by simp)]
-        intro a
-        by_contra!
-        have hi0 : i ∈ ((⊥ : Subalgebra ℝ D).toSubmodule) := by
-          rw [← this]
-          apply Submodule.smul_mem
-          exact Subalgebra.one_mem _
-        have hi1 : i ∈ (Submodule.span ℝ {i}) := by simp
-        have hizero := Submodule.disjoint_def.mp hcompl.disjoint i hi0 hi1
-        rw [hizero] at hi
-        simp at hi
-
-      have hspan : ⊤ ≤ Submodule.span ℝ (Set.range basisSet) := by
-        rw [Submodule.span_range_eq_iSup]
-        rw [top_le_iff]
-        convert hcompl.sup_eq_top
-        unfold basisSet
-        rw [← iSup_univ, honespan]
-        convert iSup_pair (a := 0) (b := 1) (f := fun n ↦ Submodule.span ℝ {![1, i] n})
-        ext x
-        fin_cases x <;> simp
-
-      let basis := Basis.mk hindep hspan
-
-      right
+    · right
       left
-      let linEquiv := Basis.equiv basis Complex.basisOneI (Equiv.refl _)
-      refine Nonempty.intro (AlgEquiv.ofLinearEquiv_basis linEquiv ?_ basis ?_)
-      · rw [show (1 : D) = basis 0 by unfold basis basisSet; simp]
-        rw [show (1 : ℂ) = Complex.basisOneI 0 by simp]
-        unfold linEquiv
-        simp
-      · have basis00 : basis 0 * basis 0 = basis 0 := by
-          simp [basis, basisSet]
-        have basis01 : basis 0 * basis 1 = basis 1 := by
-          simp [basis, basisSet]
-        have basis10 : basis 1 * basis 0 = basis 1 := by
-          simp [basis, basisSet]
-        have basis11 : basis 1 * basis 1 = -basis 0 := by
-          suffices i * i = -1 by simpa [basis, basisSet] using this
-          rw [← sq, hi, map_neg]
-          simp
-
-        intro i j
-        fin_cases i <;> fin_cases j <;> unfold linEquiv <;>
-          simp [basis00, basis01, basis10, basis11]
-    · have himem : i ∈ PurelyImaginary D := Submodule.smul_mem _ _ hu
-      have hle : Submodule.span ℝ {i} ≤ PurelyImaginary D :=
-        (Submodule.span_singleton_le_iff_mem i (PurelyImaginary D)).mpr himem
-      have hlt : Submodule.span ℝ {i} < PurelyImaginary D := by
-        exact lt_of_le_of_ne hle (hspan ·.symm)
-      have hw : ∃ w ∈ PurelyImaginary D, w ∉ Submodule.span ℝ {i} := by
-        exact Set.exists_of_ssubset hlt
-      obtain ⟨w, hwmem, hwnmem⟩ := hw
-      let J := i * w * i + w
-      let K := i * w - w * i
-      have hJmem : J ∈ PurelyImaginary D := by
-        refine Submodule.add_mem _ ?_ hwmem
-        exact mul_mul_mem D himem hwmem
-      obtain ⟨w', hw'0, hw'⟩ := (mem_purelyImaginary_iff D).mp hwmem
-
-      have hiw := calc
-        i * w * i * (i * w * i) = i * w * i ^ 2 * w * i := by
-          rw [sq]
-          group
-        _ = i * w * (algebraMap ℝ D (-1)) * w * i := by rw [hi]
-        _ = (algebraMap ℝ D (-1)) * i * w ^ 2 * i := by
-          simp_rw [sq, ← Algebra.commutes]
-          group
-        _ = (algebraMap ℝ D (-1)) * i * (algebraMap ℝ D w') * i := by rw [hw']
-        _ = (algebraMap ℝ D w') * (algebraMap ℝ D (-1)) * i ^ 2 := by
-          simp_rw [sq, ← Algebra.commutes w']
-          group
-        _ = (algebraMap ℝ D w') * (algebraMap ℝ D (-1)) * (algebraMap ℝ D (-1)) := by rw [hi]
-        _ = (algebraMap ℝ D w') * (algebraMap ℝ D 1) := by
-          rw [mul_assoc, ← map_mul, neg_one_mul, neg_neg]
-        _ = (algebraMap ℝ D w') := by simp
-        _ = w ^ 2 := hw'
-      have hiw' := calc
-        w * i * (i * w) = w * i ^ 2 * w := by
-          rw [sq]
-          group
-        _ = w * (algebraMap ℝ D (-1)) * w := by rw [hi]
-        _ = (algebraMap ℝ D (-1)) * w ^ 2 := by
-          simp_rw [sq, ← Algebra.commutes]
-          group
-        _ = - w ^ 2 := by simp
-      have hiw'' := calc
-        i * w * (w * i) = i * w ^ 2 * i := by
-          rw [sq]
-          group
-        _ = i * (algebraMap ℝ D w') * i := by rw [hw']
-        _ = (algebraMap ℝ D w') * i ^ 2 := by
-          simp_rw [sq, ← Algebra.commutes]
-          group
-        _ = (algebraMap ℝ D w') * (algebraMap ℝ D (-1)) := by rw [hi]
-        _ = w ^ 2 * (algebraMap ℝ D (-1)) := by rw [hw']
-        _ = - w ^ 2 := by simp
-
-      have hJK : J ^ 2 = K ^ 2 := by
-        simp_rw [J, K, sq, mul_add, add_mul, mul_sub, sub_mul]
-        rw [hiw, hiw', hiw'']
-        simp_rw [sq]
-        group
-        abel
-      have hKmem : K ∈ PurelyImaginary D := by
-        rw [mem_purelyImaginary_iff] at ⊢ hJmem
-        rw [← hJK]
-        exact hJmem
-
-      obtain ⟨s, hs⟩ := circle_real D hwmem himem
-      have hJeq : J = (2 : ℝ) • w + s • i := by
-        symm
-        calc
-          (2 : ℝ) • w + s • i = (2 : ℝ) • w + (w * i + i * w) * i := by rw [Algebra.smul_def s, hs]
-          _ = (2 : ℝ) • w + w * i ^ 2 + i * w * i := by
-            rw [sq, add_mul]
-            group
-            abel
-          _ = (2 : ℝ) • w + (-1 : ℝ) • w + i * w * i := by
-            rw [hi]
-            simp
-          _ = J := by
-            rw [← add_smul, add_comm _ (i * w * i)]
-            norm_num
-            rfl
-
-      have hJ0 : J ≠ 0 := by
-        contrapose! hwnmem with hJ0
-        rw [hJ0] at hJeq
-        have hwsi : - (s • i) = (2 : ℝ) • w := neg_eq_of_add_eq_zero_left hJeq.symm
-        rw [Submodule.mem_span_singleton]
-        use -s / 2
-        rw [div_eq_inv_mul, ← smul_smul, neg_smul, hwsi, smul_smul, inv_mul_cancel₀ (by simp),
-          one_smul]
-
-      obtain ⟨J', hJ'0, hJ'⟩ := (mem_purelyImaginary_iff D).mp hJmem
-
-      let j := (Real.sqrt (-J'))⁻¹ • J
-      let k := (Real.sqrt (-J'))⁻¹ • K
-      have hjmem : j ∈ PurelyImaginary D := Submodule.smul_mem _ _ hJmem
-      have hkmem : k ∈ PurelyImaginary D := Submodule.smul_mem _ _ hKmem
-
-      have hj : j ^ 2 = algebraMap ℝ D (-1) := by
-        rw [smul_pow, ← hJ', Algebra.smul_def, ← map_mul, inv_pow,
-          Real.sq_sqrt (by simpa using hJ'0)]
-        rw [inv_neg, neg_mul, inv_mul_cancel₀ ?_]
-        contrapose! hJ0
-        rw [hJ0] at hJ'
-        exact pow_eq_zero (n := 2) (by simpa using hJ'.symm)
-      have hk : k ^ 2 = algebraMap ℝ D (-1) := by
-        rw [smul_pow, ← hJK, ← smul_pow]
-        exact hj
-
-      have hij : i * j = k := calc
-        i * j = (Real.sqrt (-J'))⁻¹ • (i * (i * w * i + w)) := by apply mul_smul_comm
-        _ = (Real.sqrt (-J'))⁻¹ • (i ^ 2 * w * i + i * w) := by
-          rw [sq, mul_add]
-          group
-        _ = (Real.sqrt (-J'))⁻¹ • (-(w * i) + i * w) := by
-          rw [hi]
-          simp
-        _ = (Real.sqrt (-J'))⁻¹ • (i * w - w * i) := by rw [neg_add_eq_sub]
-        _ = k := rfl
-
-      have hji : j * i = -k := calc
-        j * i = (Real.sqrt (-J'))⁻¹ • ((i * w * i + w) * i) := by apply smul_mul_assoc
-        _ = (Real.sqrt (-J'))⁻¹ • (i * w * i ^ 2 + w * i) := by
-          rw [sq, add_mul]
-          group
-        _ = (Real.sqrt (-J'))⁻¹ • (- (i * w) + w * i) := by
-          rw [hi]
-          simp
-        _ = -((Real.sqrt (-J'))⁻¹ • (i * w - w * i)) := by
-          rw [← smul_neg (Real.sqrt (-J'))⁻¹, neg_sub, neg_add_eq_sub]
-        _ = -k := rfl
-
-      have hjk : j * k = i := calc
-        j * k = -(j * (-k)) := by simp
-        _ = -(j ^ 2 * i) := by
-          rw [sq, ← hji]
-          group
-        _ = -(algebraMap ℝ D (-1) * i) := by rw [hj]
-        _ = i := by simp
-
-      have hkj : k * j = -i := calc
-        k * j = i * j ^ 2 := by
-          rw [sq, ← hij]
-          group
-        _ = i * algebraMap ℝ D (-1) := by rw [hj]
-        _ = -i := by simp
-
-      have hki : k * i = j := calc
-        k * i = -((-k) * i) := by simp
-        _ = -(j * i ^ 2) := by
-          rw [sq, ← hji]
-          group
-        _ = -(j * algebraMap ℝ D (-1)) := by rw [hi]
-        _ = j := by simp
-
-      have hik : i * k = -j := calc
-        i * k = i ^ 2 * j := by
-          rw [sq, ← hij]
-          group
-        _ = algebraMap ℝ D (-1) * j := by rw [hi]
-        _ = -j := by simp
-
-      have hcii : circle i i = algebraMap ℝ D (-2) := by
-        unfold circle
-        simp_rw [← sq, hi]
-        rw [← map_add]
-        norm_num
-
-      have hcjj : circle j j = algebraMap ℝ D (-2) := by
-        unfold circle
-        simp_rw [← sq, hj]
-        rw [← map_add]
-        norm_num
-
-      have hckk : circle k k = algebraMap ℝ D (-2) := by
-        unfold circle
-        simp_rw [← sq, hk]
-        rw [← map_add]
-        norm_num
-
-      have hcij : circle i j = 0 := by
-        unfold circle
-        rw [hij, hji]
-        simp
-
-      have hcji : circle j i = 0 := by
-        unfold circle
-        rw [hij, hji]
-        simp
-
-      have hcjk : circle j k = 0 := by
-        unfold circle
-        rw [hjk, hkj]
-        simp
-
-      have hckj : circle k j = 0 := by
-        unfold circle
-        rw [hjk, hkj]
-        simp
-
-      have hcik : circle i k = 0 := by
-        unfold circle
-        rw [hik, hki]
-        simp
-
-      have hcki : circle k i = 0 := by
-        unfold circle
-        rw [hik, hki]
-        simp
-
-      have hnorm (a b c d : ℝ) : (a • 1 + b • i + c • j + d • k) *
-          (a • 1 - b • i - c • j - d • k) =
-          algebraMap ℝ D (a ^ 2 + b ^ 2 + c ^ 2 + d ^ 2) := by
-        simp_rw [add_mul, mul_sub, smul_mul_smul, ← sq, hi, hj, hk, hji, hij, hjk, hkj, hki, hik]
-        simp_rw [mul_comm b a, mul_comm c a, mul_comm d a, mul_comm c b, mul_comm d b, mul_comm d c]
-        simp_rw [map_add]
-        rw [Algebra.algebraMap_eq_smul_one (a ^ 2)]
-        rw [Algebra.algebraMap_eq_smul_one (b ^ 2)]
-        rw [Algebra.algebraMap_eq_smul_one (c ^ 2)]
-        rw [Algebra.algebraMap_eq_smul_one (d ^ 2)]
-        simp
-        abel
-
-      let basisSet := ![1, i, j, k]
-      have hindep : LinearIndependent ℝ basisSet := by
-        rw [Fintype.linearIndependent_iff']
-        rw [← le_bot_iff]
-        intro x hx
-        rw [LinearMap.mem_ker] at hx
-        suffices x = 0 by simpa using this
-        have hx : ∑ n, x n • basisSet n = 0 := by simpa using hx
-        have h0 : x 0 • (1 : D) + x 1 • i + x 2 • j + x 3 • k = 0 := by
-          convert hx
-          symm
-          apply Fin.sum_univ_four
-        have h0 : algebraMap ℝ D (x 0 ^ 2 + x 1 ^ 2 + x 2 ^ 2 + x 3 ^ 2) = 0 := by
-          rw [← hnorm, h0]
-          simp
-        have h0 : x 0 ^ 2 + x 1 ^ 2 + x 2 ^ 2 + x 3 ^ 2 = 0 := by
-          apply FaithfulSMul.algebraMap_injective ℝ D
-          simpa using h0
-        have h0 : ∑ n : Fin 4, (x n) ^ 2 = 0 := by
-          convert h0
-          apply Fin.sum_univ_four
-        rw [Fintype.sum_eq_zero_iff_of_nonneg (by
-          rw [Pi.le_def]
-          intro n
-          simpa using sq_nonneg (x n))] at h0
-        ext n
-        simpa using congrFun h0 n
-
-      have hspan : ⊤ ≤ Submodule.span ℝ (Set.range basisSet) := by
-        intro v _
-        refine (Submodule.mem_span_range_iff_exists_fun ℝ).mpr ?_
-        obtain ⟨v0, hv0, v123, hv123, hv⟩ := (Submodule.sup_eq_top_iff _ _).mp hcompl.sup_eq_top v
-        obtain ⟨x0, h0⟩ := Set.mem_range.mp <| Algebra.mem_bot.mp hv0
-        obtain ⟨x1, h1⟩ := circle_real D hv123 himem
-        obtain ⟨x2, h2⟩ := circle_real D hv123 hjmem
-        obtain ⟨x3, h3⟩ := circle_real D hv123 hkmem
-        use ![x0, -2⁻¹ * x1, -2⁻¹ * x2, -2⁻¹ * x3]
-        rw [Fin.sum_univ_four]
-        unfold basisSet
-        suffices x0 • 1 + -((2⁻¹ * x1) • i) + -((2⁻¹ * x2) • j) + -((2⁻¹ * x3) • k) = v by
-          simpa using this
-        simp_rw [← smul_smul]
-        rw [Algebra.smul_def x0, Algebra.smul_def x1, Algebra.smul_def x2, Algebra.smul_def x3]
-        rw [h0, h1, h2, h3, hv]
-        rw [add_assoc, add_assoc, mul_one]
-        apply add_left_cancel_iff.mpr
-        let e := (2 : ℝ) • v123 +
-          (circle v123 i) * i + (circle v123 j) * j + (circle v123 k) * k
-        suffices e = 0 by
-          unfold e at this
-          rw [add_assoc, add_assoc, add_comm ((2 : ℝ) • v123), ← neg_eq_iff_add_eq_zero] at this
-          rw [← inv_smul_eq_iff₀ (by simp)] at this
-          simp only [smul_neg, smul_add] at this
-          convert this using 1
-          abel
-        have hei : circle e i = 0 := by
-          unfold e
-          simp only [circle_right_distrib, ← h1, ← h2, ← h3, ← Algebra.smul_def, circle_left_smul,
-            hcii, hcji, hcki, smul_zero, add_zero]
-          simp_rw [Algebra.smul_def, ← map_mul, ← map_add]
-          suffices 2 * x1 + x1 * -2 = 0 by
-            rw [this]
-            simp
-          rw [mul_comm x1, neg_mul, ← sub_eq_add_neg, sub_self]
-
-        have hej : circle e j = 0 := by
-          unfold e
-          simp only [circle_right_distrib, ← h1, ← h2, ← h3, ← Algebra.smul_def, circle_left_smul,
-            hcjj, hcij, hckj, smul_zero, add_zero]
-          simp_rw [Algebra.smul_def, ← map_mul, ← map_add]
-          suffices 2 * x2 + x2 * -2 = 0 by
-            rw [this]
-            simp
-          rw [mul_comm x2, neg_mul, ← sub_eq_add_neg, sub_self]
-
-        have hek : circle e k = 0 := by
-          unfold e
-          simp only [circle_right_distrib, ← h1, ← h2, ← h3, ← Algebra.smul_def, circle_left_smul,
-            hckk, hcik, hcjk, smul_zero, add_zero]
-          simp_rw [Algebra.smul_def, ← map_mul, ← map_add]
-          suffices 2 * x3 + x3 * -2 = 0 by
-            rw [this]
-            simp
-          rw [mul_comm x3, neg_mul, ← sub_eq_add_neg, sub_self]
-
-        have := calc
-          e * k = e * i * j := by
-            rw [← hij]
-            group
-          _ = (-(i * e)) * j := by
-            congr 1
-            apply (neg_eq_iff_add_eq_zero.mpr ?_).symm
-            rw [add_comm]
-            exact hei
-          _ = i * (-(e * j)) := by
-            simp only [neg_mul, mul_neg, neg_inj]
-            group
-          _ = i * j * e := by
-            rw [neg_eq_iff_add_eq_zero.mpr hej]
-            group
-          _ = k * e := by rw [hij]
-
-        have hek' : e * k + k * e = 0 := hek
-        rw [this, ← two_smul ℝ, smul_eq_zero, mul_eq_zero] at hek'
-        have hk0 : k ≠ 0 := by
-          contrapose! hk
-          rw [hk]
-          simp
-        simpa [hk0] using hek'
-
-      let basis := Basis.mk hindep hspan
-
-      let quaternionBasis : QuaternionAlgebra.Basis D (-1 : ℝ) 0 (-1) := {
-        i := i
-        j := j
-        k := k
-        i_mul_i := by simp [← sq, hi]
-        j_mul_j := by simp [← sq, hj]
-        i_mul_j := by simp [hij]
-        j_mul_i := by simp [hji]
-      }
+      exact equiv_c D hspan
+    · have : Fact (PurelyImaginary D ≠ ℝ ∙ i) := ⟨hspan⟩
       right
       right
-      refine Nonempty.intro ?_
-      symm
-      apply AlgEquiv.ofBijective (quaternionBasis.liftHom)
-      constructor
-      · intro x y h
-        have h : algebraMap ℝ _ x.re + x.imI • i + x.imJ • j + x.imK • k
-            = algebraMap ℝ _ y.re + y.imI • i + y.imJ • j + y.imK • k := h
-        have h : x.re • (1 : D) + x.imI • i + x.imJ • j + x.imK • k
-            = y.re • (1 : D) + y.imI • i + y.imJ • j + y.imK • k := by
-          rw [Algebra.smul_def x.re, Algebra.smul_def y.re, mul_one, mul_one]
-          exact h
-        have h : Fintype.linearCombination ℝ basis ![x.re, x.imI, x.imJ, x.imK]
-            = Fintype.linearCombination ℝ basis ![y.re, y.imI, y.imJ, y.imK] := by
-          rw [Fintype.linearCombination_apply, Fintype.linearCombination_apply]
-          rw [Fin.sum_univ_four, Fin.sum_univ_four]
-          unfold basis
-          simpa using h
-        rw [← Finsupp.linearCombination_eq_fintype_linearCombination] at h
-        simp_rw [LinearMap.comp_apply] at h
-        apply_fun basis.repr at h
-        simp_rw [Basis.repr_linearCombination] at h
-        have h : ![x.re, x.imI, x.imJ, x.imK] = ![y.re, y.imI, y.imJ, y.imK] := by simpa using h
-        ext
-        · exact congrFun h 0
-        · exact congrFun h 1
-        · exact congrFun h 2
-        · exact congrFun h 3
-      · intro a
-        use ⟨basis.repr a 0, basis.repr a 1, basis.repr a 2, basis.repr a 3⟩
-        show algebraMap ℝ _ (basis.repr a 0) + (basis.repr a 1) • i
-            + (basis.repr a 2) • j  + (basis.repr a 3) • k = a
-        suffices (basis.repr a 0) • 1 + (basis.repr a 1) • i
-            + (basis.repr a 2) • j  + (basis.repr a 3) • k = a by
-          rw [Algebra.smul_def (basis.repr a 0), mul_one] at this
-          exact this
-        suffices Fintype.linearCombination ℝ basis (basis.repr a) = a by
-          rw [Fintype.linearCombination_apply, Fin.sum_univ_four] at this
-          unfold basis at this
-          simpa using this
-        rw [← Finsupp.linearCombination_eq_fintype_linearCombination]
-        simp
+      exact iso_h D
