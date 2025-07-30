@@ -218,9 +218,7 @@ theorem archimedeanClass_le_iff_of_orderTop_eq {x y : Lex (HahnSeries Γ R)}
       obtain hjlt | hjeq | hjgt := lt_trichotomy (WithTop.some j) (ofLex |x|).orderTop
       · -- impossible case: x and y differ before their leading coefficients
         have hjlt' : j < (ofLex |y|).orderTop := h'.symm ▸ hjlt
-        rw [coeff_eq_zero_of_lt_orderTop hjlt] at hi
-        rw [coeff_eq_zero_of_lt_orderTop hjlt'] at hi
-        simp at hi
+        simp [coeff_eq_zero_of_lt_orderTop hjlt, coeff_eq_zero_of_lt_orderTop hjlt'] at hi
       · convert hi.le <;> exact (WithTop.untop_eq_iff _).mpr hjeq.symm
       · exact (hj _ ((WithTop.untop_lt_iff _).mpr hjgt)).le
     · -- mk x.leadingCoeff ≤ mk y.leadingCoeff → mk x ≤ mk y
