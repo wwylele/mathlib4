@@ -541,8 +541,8 @@ theorem liftOrderHom_mk {α : Type*} [PartialOrder α]
   lift_mk f (fun a b heq ↦ le_antisymm (h a b heq.le) (h b a heq.ge)) ha
 
 variable (M) in
-/-- Adding top to top-less classes turns it back to full classes. -/
-@[to_additive "Adding top to top-less classes turns it back to full classes."]
+/-- Adding top to the type of non-top classes yields the type of all classes. -/
+@[to_additive "Adding top to the type of non-top classes yields the type of all classes."]
 noncomputable
 def withTopOrderIso : WithTop (MulArchimedeanClass₁ M) ≃o MulArchimedeanClass M where
   toFun
