@@ -178,9 +178,7 @@ theorem abs_lt_of_orderTop_gt {x y : Lex (HahnSeries Γ R)}
       exact (WithTop.lt_untop_iff _).mp hj
   · rw [HahnSeries.coeff_eq_zero_of_lt_orderTop ?_]
     · have hy0 : y ≠ 0 := HahnSeries.ne_zero_iff_orderTop.mpr h.ne_top
-      have hy0' : ofLex |y| ≠ 0 := by
-        change |y| ≠ 0
-        simpa using hy0
+      have hy0' : ofLex |y| ≠ 0 := abs_ne_zero.mpr hy0
       conv in (ofLex y).orderTop => rw [← orderTop_abs]
       rw [coeff_untop_eq_leadingCoeff hy0', leadingCoeff_pos_iff, abs_pos]
       exact hy0
