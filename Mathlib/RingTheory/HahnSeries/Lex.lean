@@ -203,12 +203,8 @@ theorem archimedeanClass_le_iff_of_orderTop_eq {x y : Lex (HahnSeries Γ R)}
     have hx' : ofLex x ≠ 0 := hx
     have hy' : ofLex y ≠ 0 := ne_zero_iff_orderTop.mpr <| h.symm ▸ ne_zero_iff_orderTop.mp hx'
     have hy : y ≠ 0 := hy'
-    have hxabs : ofLex |x| ≠ 0 := by
-      change |x| ≠ 0
-      simpa using hx
-    have hyabs : ofLex |y| ≠ 0 := by
-      change |y| ≠ 0
-      simpa using hy
+    have hxabs : ofLex |x| ≠ 0 := abs_ne_zero.mpr hx
+    have hyabs : ofLex |y| ≠ 0 := abs_ne_zero.mpr hy
     have h' : (ofLex |x|).orderTop = (ofLex |y|).orderTop := by simpa [orderTop_abs] using h
     constructor
     · -- mk x ≤ mk y → mk x.leadingCoeff ≤ mk y.leadingCoeff
