@@ -455,7 +455,7 @@ end MulArchimedeanClass
 
 variable (M) in
 /-- Subtype of `MulArchimedeanClass` that removes the top element. -/
-@[to_additive ArchimedeanClass₀ "Subtype of `ArchimedeanClass` that removes the top element"]
+@[to_additive ArchimedeanClass₀ "Subtype of `ArchimedeanClass` that removes the top element."]
 abbrev MulArchimedeanClass₁ := {A : MulArchimedeanClass M // A ≠ ⊤}
 
 namespace MulArchimedeanClass₁
