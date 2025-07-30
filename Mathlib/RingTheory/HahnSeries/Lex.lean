@@ -208,9 +208,8 @@ theorem archimedeanClass_le_iff_of_orderTop_eq {x y : Lex (HahnSeries Γ R)}
     · -- mk x ≤ mk y → mk x.leadingCoeff ≤ mk y.leadingCoeff
       intro ⟨n, hn⟩
       refine ⟨n + 1, ?_⟩
-      have hn' : |y| < (n + 1) • |x| := by
-        refine lt_of_le_of_lt hn <| nsmul_lt_nsmul_left ?_ (by simp)
-        simpa using hx
+      have hn' : |y| < (n + 1) • |x| :=
+        lt_of_le_of_lt hn <| nsmul_lt_nsmul_left (by simpa using hx) (by simp)
       obtain ⟨j, hj, hi⟩ := (lt_iff _ _).mp hn'
       simp_rw [ofLex_smul, coeff_smul] at hj hi
       simp_rw [← leadingCoeff_abs]
