@@ -461,7 +461,7 @@ abbrev MulArchimedeanClass₁ := {A : MulArchimedeanClass M // A ≠ ⊤}
 namespace MulArchimedeanClass₁
 
 /-- Create a `MulArchimedeanClass₁` from a non-one element. -/
-@[to_additive "Create a `ArchimedeanClass₀` from a non-zero element."]
+@[to_additive "Create an `ArchimedeanClass₀` from a non-zero element."]
 def mk {a : M} (h : a ≠ 1) : MulArchimedeanClass₁ M :=
   ⟨MulArchimedeanClass.mk a, MulArchimedeanClass.mk_eq_top_iff.not.mpr h⟩
 
