@@ -312,8 +312,7 @@ noncomputable def archimedeanClass₀OrderHomInv :
       change single (ofLex x).1 a.val ≠ 0
       simpa using a.prop))
     fun ⟨a, ha⟩ ⟨b, hb⟩ h ↦ by
-      rw [ArchimedeanClass₀.mk_le_mk] at ⊢ h
-      rw [archimedeanClass_le_iff]
+      rw [ArchimedeanClass₀.mk_le_mk, archimedeanClass_le_iff]
       simpa [orderTop_single ha, orderTop_single hb] using h
   monotone' a b := a.rec fun (ao, ac) ↦ b.rec fun (bo, bc) ↦ by
     intro h
