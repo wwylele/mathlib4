@@ -18,16 +18,16 @@ This file proves a variation of Hahn embedding theorem:
 
 For a linearly ordered module $M$ over an Archimedean division ring $K$,
 there exists a strictly monotune linear map to lexicographically ordered
-`HahnSeries (ArchimedeanClass₀ M) R` with archimedean module $R$ over the same ring
-as long as for a family of `IsArchimedeanGrade` submodule of $M$, there exists a
+`HahnSeries (ArchimedeanClass₀ M) R` with an archimedean module $R$ over the same ring
+as long as for a family of `ArchimedeanClass.IsGrade` submodule of $M$, there exists a
 strictly monotune linear map to $R$ for each grade.
 
 By setting $K = ℚ$ and $R = ℝ$, the condition can be trivially satisfied, leading
 to a proof of the classic Hahn embedding theorem. (TODO: implement this)
 
 ## Main definition
-* `HahnEmbeddingSeed K M R` specifies a family of `IsArchimedeanGrade` submodule of `M`, and
-  strictly monotune linear map from each grade to module `R`.
+* `HahnEmbeddingSeed K M R` specifies a family of `ArchimedeanClass.IsGrade` submodule of `M`, and
+  strictly monotune linear maps from each grade to module `R`.
 
 ## Main theorem
 * `exists_linearMap_hahnSeries_strictMono`: there exists a strictly monotune
@@ -92,10 +92,12 @@ end HahnSeries
 We start constructing the embedding with a "seed" `HahnEmbeddingSeed`,
 which specifies how to embed each Archimedean grade of `M` into `R`
 (which always exists if `R = ℝ`). From these, we can create partial map from
-the direct sum of all grades to `HahnSeries Γ R`. If `M` is finite-dimensional over `K`, then the
+the direct sum of all grades to `HahnSeries Γ R`. If `ArchimedeanClass M` is finite, then the
 direct sum is the entire `M` and we are done (though we don't specifically prove for this case).
 Otherwise, we will extend the map to `M` in the following steps.
 -/
+
+open ArchimedeanClass
 
 variable {K : Type*} [DivisionRing K] [LinearOrder K] [IsOrderedRing K] [Archimedean K]
 variable {M : Type*} [AddCommGroup M] [LinearOrder M] [IsOrderedAddMonoid M]
@@ -104,15 +106,15 @@ variable {R : Type*} [AddCommGroup R] [LinearOrder R] [IsOrderedAddMonoid R] [Ar
 variable [Module K R]
 
 variable (K M R) in
-/-- specifies a family of `IsArchimedeanGrade` submodule of `M`, and
-  strictly monotune linear maps from each grade to module `R`. -/
+/-- specifies a family of `IsGrade` submodule of `M`, and
+strictly monotune linear maps from each grade to module `R`. -/
 structure HahnEmbeddingSeed where
   /-- For each `ArchimedeanClass`, specify a corresponding grade. -/
   grades : ArchimedeanClass M → Submodule K M
   /-- For each grade, specify a linear map to `R` as the Hahn series coefficient. -/
   gradeMap (A : ArchimedeanClass M) : grades A →ₗ[K] R
   /-- Asserts that `grades` are indeed grades. -/
-  isArchimedeanGrade (A : ArchimedeanClass M) : IsArchimedeanGrade K A (grades A)
+  isGrade (A : ArchimedeanClass M) : IsGrade A (grades A)
   /-- Asserts that `gradeMap` is strictly monotone. -/
   strictMono (A : ArchimedeanClass M) : StrictMono (gradeMap A)
 
@@ -131,18 +133,18 @@ abbrev HahnEmbeddingSeed.gradeMap' (seed : HahnEmbeddingSeed K M R) (A : Archime
     grades' seed A →ₗ[K] R := (seed.gradeMap A).comp (LinearMap.submoduleComap _ _)
 
 omit [IsOrderedAddMonoid R] [Archimedean R] in
-theorem HahnEmbeddingSeed.iSupIndep' (seed : HahnEmbeddingSeed K M R) :
+theorem HahnEmbeddingSeed.iSupIndep (seed : HahnEmbeddingSeed K M R) :
     iSupIndep (seed.grades') := by
   apply (iSupIndep_map_orderIso_iff (Submodule.mapIic seed.baseDomain)).mp
   apply iSupIndep.of_coe_Iic_comp
-  convert IsArchimedeanGrade.iSupIndep K seed.isArchimedeanGrade
+  convert iSupIndep_of_isGrade seed.isGrade
   ext1 A
   simpa using le_iSup _ _
 
 omit [IsOrderedAddMonoid R] [Archimedean R] in
 theorem HahnEmbeddingSeed.isInternal (seed : HahnEmbeddingSeed K M R) :
     DirectSum.IsInternal (grades' seed) := by
-  apply DirectSum.isInternal_submodule_of_iSupIndep_of_iSup_eq_top (iSupIndep' seed)
+  apply DirectSum.isInternal_submodule_of_iSupIndep_of_iSup_eq_top (iSupIndep seed)
   apply Submodule.map_injective_of_injective (seed.baseDomain.subtype_injective)
   suffices ⨆ i, seed.baseDomain ⊓ seed.grades i = seed.baseDomain by simpa using this
   apply iSup_congr
@@ -266,7 +268,7 @@ theorem baseHahnEmbedding_pos (seed : HahnEmbeddingSeed K M R) {x : (baseHahnEmb
     contrapose! h
     rw [← Submodule.coe_eq_zero, ← Submodule.mem_bot K]
     convert ← (f ⊤).prop
-    simpa using (seed.isArchimedeanGrade ⊤).sup_eq
+    simpa using (seed.isGrade ⊤).sup_eq
   -- The dictating term for HahnSeries < is at the lowest archimedean class of f.support
   refine (HahnSeries.lt_iff _ _).mpr ⟨⟨f.support.min' hsupport, htop⟩, ?_, ?_⟩
   · intro j hj
@@ -286,28 +288,28 @@ theorem baseHahnEmbedding_pos (seed : HahnEmbeddingSeed K M R) {x : (baseHahnEmb
       simpa using this
     -- using the fact that f.sum is positive, we only needs to show that
     -- the remaining terms of f after removing the dominating class is of higher class
-    apply ArchimedeanClass.pos_of_pos_of_mk_lt hfpos
-    rw [ArchimedeanClass.mk_sub_comm]
+    apply pos_of_pos_of_mk_lt hfpos
+    rw [mk_sub_comm]
     have hferase : (f.sum fun _ x ↦ x.val) - (f (f.support.min' hsupport)).val =
         ∑ x ∈ f.support.erase (f.support.min' hsupport), (f x).val := by
       apply sub_eq_of_eq_add
       exact (Finset.sum_erase_add _ _ (Finset.min'_mem _ hsupport)).symm
     rw [hferase]
-    -- Now both sides are ArchimedeanClass.mk (∑ ...)
-    -- We rewrite them to ArchimedeanClass.mk (dominating term)
-    have hmono : StrictMonoOn (fun x ↦ ArchimedeanClass.mk (f x).val) f.support := by
+    -- Now both sides are mk (∑ ...)
+    -- We rewrite them to mk (dominating term)
+    have hmono : StrictMonoOn (fun x ↦ mk (f x).val) f.support := by
       intro A hA B hB h
       simp only
-      rw [(seed.isArchimedeanGrade A).archimedeanClass_eq_of_mem K (f A).prop (by simpa using hA)]
-      rw [(seed.isArchimedeanGrade B).archimedeanClass_eq_of_mem K (f B).prop (by simpa using hB)]
+      rw [(seed.isGrade A).archimedeanClass_eq (f A).prop (by simpa using hA)]
+      rw [(seed.isGrade B).archimedeanClass_eq (f B).prop (by simpa using hB)]
       exact h
-    rw [DFinsupp.sum, ArchimedeanClass.mk_sum hsupport hmono]
-    rw [(seed.isArchimedeanGrade (f.support.min' hsupport)).archimedeanClass_eq_of_mem K (f _).prop
+    rw [DFinsupp.sum, mk_sum hsupport hmono]
+    rw [(seed.isGrade (f.support.min' hsupport)).archimedeanClass_eq (f _).prop
       (by simpa using f.support.min'_mem hsupport)]
     by_cases hsupport' : (f.support.erase (f.support.min' hsupport)).Nonempty
-    · rw [ArchimedeanClass.mk_sum hsupport' (hmono.mono (by simp))]
-      rw [(seed.isArchimedeanGrade ((f.support.erase _).min' hsupport')).archimedeanClass_eq_of_mem
-        K (f _).prop (by
+    · rw [mk_sum hsupport' (hmono.mono (by simp))]
+      rw [(seed.isGrade ((f.support.erase _).min' hsupport')).archimedeanClass_eq
+        (f _).prop (by
         simpa using (Finset.mem_erase.mp <| (f.support.erase _).min'_mem hsupport').2)]
       apply Finset.min'_lt_of_mem_erase_min'
       apply Finset.min'_mem
@@ -420,27 +422,24 @@ theorem map_grade (f : PartialHahnEmbedding seed) {x : f.val.domain} {A : Archim
 omit [Archimedean R] in
 /-- Archimedean equivalence is preserved by `f`. -/
 theorem archimedeanClass_eq_iff (f : PartialHahnEmbedding seed) (x y : f.val.domain) :
-    ArchimedeanClass.mk (f.val x) = ArchimedeanClass.mk (f.val y) ↔
-    ArchimedeanClass.mk x.val = ArchimedeanClass.mk y.val := by
-  simp_rw [← toOrderAddMonoidHom_apply, ← ArchimedeanClass.orderHom_mk]
-  trans ArchimedeanClass.mk x = ArchimedeanClass.mk y
+    mk (f.val x) = mk (f.val y) ↔ mk x.val = mk y.val := by
+  simp_rw [← toOrderAddMonoidHom_apply, ← orderHom_mk]
+  trans mk x = mk y
   · apply Function.Injective.eq_iff
-    apply ArchimedeanClass.orderHom_injective
+    apply orderHom_injective
     apply toOrderAddMonoidHom_injective
-  · simp_rw [ArchimedeanClass.mk_eq_mk]
+  · simp_rw [mk_eq_mk]
     aesop
 
 /-- Archimedean equivalence of input is transferred to `HahnSeries.orderTop` equality. -/
 theorem orderTop_eq_iff (f : PartialHahnEmbedding seed) (x y : f.val.domain) :
-    (ofLex (f.val x)).orderTop = (ofLex (f.val y)).orderTop ↔
-    ArchimedeanClass.mk x.val = ArchimedeanClass.mk y.val := by
+    (ofLex (f.val x)).orderTop = (ofLex (f.val y)).orderTop ↔ mk x.val = mk y.val := by
   obtain hsubsingleton | hnontrivial := subsingleton_or_nontrivial M
   · have : y = x := Subtype.eq <| hsubsingleton.allEq _ _
     simp [this]
   · have hnonempty : Nonempty (ArchimedeanClass₀ M) := inferInstance
     obtain A := hnonempty.some
-    have hnontrivial' : Nontrivial (seed.grades A) :=
-      (seed.isArchimedeanGrade A).nontrivial_of_ne_top K A.prop
+    have hnontrivial' : Nontrivial (seed.grades A) := (seed.isGrade A).nontrivial A.prop
     have : Nontrivial R := (seed.strictMono A).injective.nontrivial
     rw [← archimedeanClass_eq_iff]
     simp_rw [← HahnSeries.archimedeanClassOrderIso_apply]
@@ -448,18 +447,18 @@ theorem orderTop_eq_iff (f : PartialHahnEmbedding seed) (x y : f.val.domain) :
 
 /-- Archimedean class of the input is transfered to `HahnSeries.orderTop`. -/
 theorem orderTop_eq_archimedeanClass (f : PartialHahnEmbedding seed) (x : f.val.domain) :
-    ArchimedeanClass₀.withTopOrderIso M (ofLex (f.val x)).orderTop = ArchimedeanClass.mk x.val := by
+    ArchimedeanClass₀.withTopOrderIso M (ofLex (f.val x)).orderTop = mk x.val := by
   by_cases hx0 : x = 0
   · simp [hx0]
   · have hx0' : x.val ≠ 0 := by simpa using hx0
-    have : Nontrivial (seed.grades (ArchimedeanClass.mk x)) := by
-      apply (seed.isArchimedeanGrade (ArchimedeanClass.mk x)).nontrivial_of_ne_top
+    have : Nontrivial (seed.grades (mk x)) := by
+      apply (seed.isGrade (mk x)).nontrivial
       simpa using hx0
     -- Pick a representative `x'` from Archimedean grade with the same class as `x`.
     -- `f.val x'` is a `HahnSeries.single` whose `orderTop` is known
-    obtain ⟨⟨x', hx'mem⟩, hx'0⟩ := exists_ne (0 : seed.grades (ArchimedeanClass.mk x))
-    have heq : ArchimedeanClass.mk x' = ArchimedeanClass.mk x.val := by
-      apply (seed.isArchimedeanGrade (ArchimedeanClass.mk x)).archimedeanClass_eq_of_mem K hx'mem
+    obtain ⟨⟨x', hx'mem⟩, hx'0⟩ := exists_ne (0 : seed.grades (mk x))
+    have heq : mk x' = mk x.val := by
+      apply (seed.isGrade (mk x)).archimedeanClass_eq hx'mem
       simpa using hx'0
     let x'' : f.val.domain := ⟨x', grade_mem f hx'mem⟩
     have hx''mem : x''.val ∈ seed.grades (ArchimedeanClass₀.mk hx0').val := hx'mem
@@ -467,7 +466,7 @@ theorem orderTop_eq_archimedeanClass (f : PartialHahnEmbedding seed) (x : f.val.
       rw [(LinearMap.map_eq_zero_iff _ (seed.strictMono _).injective).ne]
       unfold x''
       simpa using hx'0
-    have heq' : ArchimedeanClass.mk x''.val = ArchimedeanClass.mk x.val := heq
+    have heq' : mk x''.val = mk x.val := heq
     rw [← orderTop_eq_iff, map_grade f hx''mem, ofLex_toLex, HahnSeries.orderTop_single h0] at heq'
     simp [← heq']
 
@@ -478,10 +477,9 @@ theorem orderTop_eq_archimedeanClass₀ (f : PartialHahnEmbedding seed) {x : f.v
 
 /-- `f.val x` has 0 coefficients at position of archimedean class lower than `x`'s. -/
 theorem coeff_eq_zero_of_mem (f : PartialHahnEmbedding seed) {A : ArchimedeanClass M}
-    {x : f.val.domain} (hx : x.val ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A))
-    {C : ArchimedeanClass₀ M} (hC : C.val ≤ A) :
+    {x : f.val.domain} (hx : x.val ∈ ball K A) {C : ArchimedeanClass₀ M} (hC : C.val ≤ A) :
     (ofLex (f.val x)).coeff C = 0 := by
-  by_cases hA : UpperSet.Ioi A = ⊤
+  by_cases hA : A = ⊤
   · rw [hA] at hx
     have hx : x = 0 := by simpa using hx
     simp [hx]
@@ -489,7 +487,7 @@ theorem coeff_eq_zero_of_mem (f : PartialHahnEmbedding seed) {A : ArchimedeanCla
     apply_fun ArchimedeanClass₀.withTopOrderIso _
     rw [orderTop_eq_archimedeanClass, ArchimedeanClass₀.withTopOrderIso_apply_coe]
     apply lt_of_le_of_lt hC
-    rw [ArchimedeanSubgroup.mem_submodule_iff_of_ne_top K hA] at hx
+    rw [mem_ball_iff K hA] at hx
     simpa using hx
 
 /-- `f.val x` has a non-zero coefficient at position of `x`'s archimedean class. -/
@@ -498,12 +496,11 @@ theorem coeff_ne_zero (f : PartialHahnEmbedding seed) {x : f.val.domain} (hx0 : 
   apply HahnSeries.coeff_orderTop_ne
   exact f.orderTop_eq_archimedeanClass₀ hx0
 
-/-- When `y` and `z` are both near `x` (the difference is in a `ArchimedeanSubgroup`),
+/-- When `y` and `z` are both near `x` (the difference is in a `ArchimedeanClass`),
 then initial coefficients of `f.val y` and `f.val z` agrees. -/
 theorem coeff_eq_of_mem (f : PartialHahnEmbedding seed) (x : M)
     {y z : f.val.domain} {A : ArchimedeanClass M}
-    (hy : y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A))
-    (hz : z.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A))
+    (hy : y.val - x ∈ ball K A) (hz : z.val - x ∈ ball K A)
     {C : ArchimedeanClass₀ M} (hC : C ≤ A) :
     (ofLex (f.val y)).coeff C = (ofLex (f.val z)).coeff C := by
   apply eq_of_sub_eq_zero
@@ -532,22 +529,21 @@ extension isn't necessarily linear.
 noncomputable
 def evalCoeff (f : PartialHahnEmbedding seed) (x : M) (A : ArchimedeanClass₀ M) : R :=
   open Classical in
-  if h : ∃ y : f.val.domain, y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A) then
+  if h : ∃ y : f.val.domain, y.val - x ∈ ball K A then
     (ofLex (f.val h.choose)).coeff A
   else
     0
 
 /-- The coefficient is well-defined regardless which `y` we pick in `evalCoeff`. -/
 theorem evalCoeff_eq (f : PartialHahnEmbedding seed) {x : M} {A : ArchimedeanClass₀ M}
-    {y : f.val.domain} (hy : y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A)) :
+    {y : f.val.domain} (hy : y.val - x ∈ ball K A) :
     evalCoeff f x A = (ofLex (f.val y)).coeff A := by
-  have hnonempty : ∃ y : f.val.domain, y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A)
-    := ⟨y, hy⟩
+  have hnonempty : ∃ y : f.val.domain, y.val - x ∈ ball K A := ⟨y, hy⟩
   simpa [evalCoeff, hnonempty] using coeff_eq_of_mem f x hnonempty.choose_spec hy (le_refl _)
 
 omit [IsOrderedAddMonoid R] [Archimedean R] in
 theorem evalCoeff_eq_zero (f : PartialHahnEmbedding seed) {x : M} {A : ArchimedeanClass₀ M}
-    (h : ¬∃ y : f.val.domain, y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A)) :
+    (h : ¬∃ y : f.val.domain, y.val - x ∈ ball K A) :
     f.evalCoeff x A = 0 := by
   simp [evalCoeff, h]
 
@@ -556,8 +552,7 @@ theorem evalCoeff_isWF_support (f : PartialHahnEmbedding seed) (x : M) :
   rw [Set.isWF_iff_no_descending_seq]
   by_contra!
   obtain ⟨seq, ⟨hanti, hmem⟩⟩ := this
-  have hnonempty :
-      ∃ y : f.val.domain, y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi (seq 0)) := by
+  have hnonempty : ∃ y : f.val.domain, y.val - x ∈ ball K (seq 0) := by
     specialize hmem 0
     contrapose hmem with hempty
     unfold evalCoeff
@@ -568,8 +563,7 @@ theorem evalCoeff_isWF_support (f : PartialHahnEmbedding seed) (x : M) :
     rw [Function.mem_support] at ⊢ hmem
     convert hmem using 1
     refine (f.evalCoeff_eq ?_).symm
-    refine ArchimedeanSubgroup.submodule_antitone _ _ ?_ hy
-    apply (UpperSet.Ioi_strictMono _).monotone
+    refine ball_antitone _ _ ?_ hy
     simpa using hanti.antitone (show 0 ≤ n by simp)
   obtain hwf := (ofLex (f.val y)).isWF_support
   contrapose! hwf
@@ -598,15 +592,14 @@ theorem eval_smul (f : PartialHahnEmbedding seed) (c : K) (x : M) :
     rw [← toLex_smul, toLex.injective.eq_iff]
     ext A
     suffices f.evalCoeff (c • x) A = c • f.evalCoeff x A by simpa using this
-    by_cases h : ∃ y : f.val.domain, y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A)
+    by_cases h : ∃ y : f.val.domain, y.val - x ∈ ball K A
     · obtain ⟨y, hy⟩ := h
       have heq : (c • y).val - c • x = c • (y.val - x) := by simp [smul_sub]
-      have hy' : (c • y).val - c • x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A) := by
+      have hy' : (c • y).val - c • x ∈ ball K A := by
         rw [heq]
         exact Submodule.smul_mem _ _ hy
       simp [f.evalCoeff_eq hy, f.evalCoeff_eq hy', LinearPMap.map_smul]
-    · have h' : ¬∃ y : f.val.domain,
-          y.val - c • x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A) := by
+    · have h' : ¬∃ y : f.val.domain, y.val - c • x ∈ ball K A := by
         contrapose! h
         obtain ⟨y, hy⟩ := h
         use c⁻¹ • y
@@ -620,19 +613,19 @@ theorem eval_smul (f : PartialHahnEmbedding seed) (c : K) (x : M) :
 in terms of Archimedean classes. -/
 theorem archimedeanClass_le_of_eval_eq (f : PartialHahnEmbedding seed) {x : M}
     {y : f.val.domain} (h : f.eval x = f.val y) (z : f.val.domain) :
-    ArchimedeanClass.mk (x - z.val) ≤ ArchimedeanClass.mk (x - y.val) := by
+    mk (x - z.val) ≤ mk (x - y.val) := by
   have : x - y.val = x - z.val + (z.val - y.val) := by abel
   rw [this]
-  apply ArchimedeanClass.mk_left_le_mk_add
+  apply mk_left_le_mk_add
   by_cases hyz : z.val - y.val = 0
   · simp [hyz]
-  have h1 (A : ArchimedeanClass₀ M) (hA : A.val < ArchimedeanClass.mk (x - z.val)) :
+  have h1 (A : ArchimedeanClass₀ M) (hA : A.val < mk (x - z.val)) :
       (ofLex (f.eval x)).coeff A = (ofLex (f.val z)).coeff A := by
-    rw [ArchimedeanClass.mk_sub_comm] at hA
+    rw [mk_sub_comm] at hA
     simp_rw [eval, ofLex_toLex]
     apply evalCoeff_eq
-    exact (ArchimedeanSubgroup.mem_submodule_Ioi_iff_of_ne_top K A.prop).mpr hA
-  have h2 : ∀ A : ArchimedeanClass₀ M, A.val < ArchimedeanClass.mk (x - z.val) →
+    exact (mem_ball_iff K A.prop).mpr hA
+  have h2 : ∀ A : ArchimedeanClass₀ M, A.val < mk (x - z.val) →
       (ofLex (f.val (z - y))).coeff A = 0 := by
     intro A hA
     rw [LinearPMap.map_sub, ofLex_sub, HahnSeries.coeff_sub, sub_eq_zero, ← h]
@@ -644,19 +637,17 @@ theorem archimedeanClass_le_of_eval_eq (f : PartialHahnEmbedding seed) {x : M}
 /-- If `x` isn't in `f`'s domain, `f.eval x` produces a brand new value not in `f`'s range. -/
 theorem eval_ne (f : PartialHahnEmbedding seed) {x : M} (hx : x ∉ f.val.domain) (y : f.val.domain) :
     f.eval x ≠ f.val y := by
-  have hxy0 : ArchimedeanClass.mk (x - y.val) ≠ ⊤ := by
+  have hxy0 : mk (x - y.val) ≠ ⊤ := by
     contrapose! hx with hxy
-    rw [ArchimedeanClass.mk_eq_top_iff, sub_eq_zero] at hxy
+    rw [mk_eq_top_iff, sub_eq_zero] at hxy
     rw [hxy]
     exact y.prop
   -- decompose x - y = u + v, where v ∈ grade (x - y) and u is at higher class than x - y
-  have hxy : x - y.val ∈
-      ArchimedeanSubgroup.submodule K (UpperSet.Ici (ArchimedeanClass.mk (x - y.val))) := by simp
-  rw [← (seed.isArchimedeanGrade (ArchimedeanClass.mk (x - y.val))).sup_eq,
-    Submodule.mem_sup] at hxy
+  have hxy : x - y.val ∈ closedBall K (mk (x - y.val)) := by simp
+  rw [← (seed.isGrade (mk (x - y.val))).sup_eq, Submodule.mem_sup] at hxy
   obtain ⟨u, hu, v, hv, huv⟩ := hxy
   have huv' : x - y.val - v = u := by simp [← huv]
-  rw [ArchimedeanSubgroup.mem_submodule_Ioi_iff_of_ne_top K hxy0] at hu
+  rw [mem_ball_iff K hxy0] at hu
   -- z = x - u = y + v is also in the domain.
   -- Assuming f.eval x = f.val y allows us to use archimedeanClass_le_of_eval_eq on z
   have hyv : y.val + v ∈ f.val.domain := Submodule.add_mem _ (by simp) (f.grade_mem hv)
@@ -674,8 +665,8 @@ finding an infinite chain of `y` that keeps getting closer to `x` in terms of Ar
 yet `x` is still isolated within a very high Archimedean class. In fact, in the next theorem,
 we will show that there is always such chain for `x` not in `f`'s domain. -/
 theorem eval_eq_truncate (f : PartialHahnEmbedding seed) {x : M} {A : ArchimedeanClass₀ M}
-    {y : f.val.domain} (hy : ArchimedeanClass.mk (y.val - x) = A.val)
-    (h : ∀ z : f.val.domain, z.val - x ∉ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A)) :
+    {y : f.val.domain} (hy : mk (y.val - x) = A.val)
+    (h : ∀ z : f.val.domain, z.val - x ∉ ball K A) :
     f.eval x = toLex (HahnSeries.truncateLinearMap K A (ofLex (f.val y))) := by
   unfold eval
   rw [toLex.injective.eq_iff]
@@ -684,28 +675,26 @@ theorem eval_eq_truncate (f : PartialHahnEmbedding seed) {x : M} {A : Archimedea
   obtain hB | hB := lt_or_ge B A
   · rw [HahnSeries.coeff_truncate_eq K hB]
     apply evalCoeff_eq
-    rw [ArchimedeanSubgroup.mem_submodule_Ioi_iff_of_ne_top _ B.prop, hy]
+    rw [mem_ball_iff _ B.prop, hy]
     simpa using hB
   · rw [HahnSeries.coeff_truncate_eq_zero K hB]
     apply evalCoeff_eq_zero
     contrapose! h
     obtain ⟨z, hz⟩ := h
     use z
-    refine ArchimedeanSubgroup.submodule_antitone _ _ ?_ hz
-    apply (UpperSet.Ioi_strictMono _).monotone
+    refine ball_antitone _ _ ?_ hz
     simpa using hB
 
 /-- For `x` not in `f`'s domain, there is an infinite chain of `y` from `f`'s domain
 that keeps getting closer to `x` in terms of Archimedean classes. -/
 theorem exists_sub_mem_submodule (f : PartialHahnEmbedding seed) {x : M} (hx : x ∉ f.val.domain)
-    (y : f.val.domain) : ∃ z : f.val.domain, z.val - x ∈
-    ArchimedeanSubgroup.submodule K (UpperSet.Ioi (ArchimedeanClass.mk (y.val - x))) := by
+    (y : f.val.domain) : ∃ z : f.val.domain, z.val - x ∈ ball K (mk (y.val - x)) := by
   have : y.val - x ≠ 0 := by
     contrapose! hx
     obtain rfl : x = y.val := (sub_eq_zero.mp hx).symm
     simp
   let A := ArchimedeanClass₀.mk this
-  have hA : ArchimedeanClass.mk (y.val - x) = A.val := rfl
+  have hA : mk (y.val - x) = A.val := rfl
   contrapose! hx
   obtain h := f.eval_eq_truncate hA hx
   obtain ⟨x', hx'⟩ := LinearMap.mem_range.mp (f.prop.truncate_mem_range y A)
@@ -721,48 +710,47 @@ theorem eval_lt (f : PartialHahnEmbedding seed) {x : M} (hx : x ∉ f.val.domain
   rw [HahnSeries.lt_iff]
   have hxy0 : y.val - x ≠ 0 := sub_ne_zero_of_ne h.ne.symm
   refine ⟨ArchimedeanClass₀.mk hxy0, ?_, ?_⟩
-  · -- All coefficients before it is zero
+  · -- All coefficients before the dictating term are the same
     intro j hj
     apply evalCoeff_eq
-    rw [ArchimedeanSubgroup.mem_submodule_Ioi_iff_of_ne_top K j.prop]
+    rw [mem_ball_iff K j.prop]
     simpa using hj
   · -- Show the dictating coefficient
-    have hyxtop : ArchimedeanClass.mk (y.val - x) ≠ ⊤ := by simp [hxy0]
+    have hyxtop : mk (y.val - x) ≠ ⊤ := by simp [hxy0]
     suffices f.evalCoeff x (ArchimedeanClass₀.mk hxy0) <
         (ofLex (f.val y)).coeff (ArchimedeanClass₀.mk hxy0) by simpa [eval] using this
     -- We find z from f's domain to approximate x. Such approximation obeys:
     -- * f.eval x = f.val z
     -- * x < y → z < y
-    -- * ArchimedeanClass.mk (x - y) = ArchimedeanClass.mk (z - y)
+    -- * mk (x - y) = mk (z - y)
     obtain ⟨z, hz⟩ := f.exists_sub_mem_submodule hx y
-    have hz' : z.val - x ∈
-        ArchimedeanSubgroup.submodule K (UpperSet.Ioi (ArchimedeanClass₀.mk hxy0).val) := hz
+    have hz' : z.val - x ∈ ball K (ArchimedeanClass₀.mk hxy0).val := hz
     rw [f.evalCoeff_eq hz']
     have hzy : z < y := by
       change z.val < y.val
       apply (sub_lt_sub_iff_right x).mp
-      refine ArchimedeanClass.lt_of_mk_lt_mk_of_nonneg ?_ (sub_nonneg_of_le h.le)
-      rw [ArchimedeanSubgroup.mem_submodule_Ioi_iff_of_ne_top K hyxtop] at hz
+      refine lt_of_mk_lt_mk_of_nonneg ?_ (sub_nonneg_of_le h.le)
+      rw [mem_ball_iff K hyxtop] at hz
       simpa using hz
     have hzyne : z.val - y.val ≠ 0 := by
       apply sub_ne_zero_of_ne
       simpa using hzy.ne
     have hzyclass : ArchimedeanClass₀.mk hxy0 = ArchimedeanClass₀.mk hzyne := by
-      suffices ArchimedeanClass.mk (y.val - x) = ArchimedeanClass.mk (z.val - y.val) by
+      suffices mk (y.val - x) = mk (z.val - y.val) by
         rw [Subtype.eq_iff]
         simpa using this
       have : y.val - z.val = y.val - x + (x - z.val) := by abel
-      rw [ArchimedeanClass.mk_sub_comm z.val y.val, this]
+      rw [mk_sub_comm z.val y.val, this]
       symm
-      apply ArchimedeanClass.mk_add_eq_mk_left
-      rw [ArchimedeanClass.mk_sub_comm x z.val]
-      rw [ArchimedeanSubgroup.mem_submodule_Ioi_iff_of_ne_top K hyxtop] at hz
+      apply mk_add_eq_mk_left
+      rw [mk_sub_comm x z.val]
+      rw [mem_ball_iff K hyxtop] at hz
       simpa using hz
     -- Since both y and z are in the domain, we can apply f's monotonicity on them
     rw [← f.prop.strictMono.lt_iff_lt, HahnSeries.lt_iff] at hzy
     obtain ⟨i, hj, hi⟩ := hzy
-    -- We show that the dictating coefficient of f.val y and f.val z
-    -- is at the same position as the dictating coefficient of f.eval x and f.val y
+    -- We show that the dictating coefficient of f.val y < f.val z
+    -- is at the same position as the dictating coefficient of f.eval x < f.val y
     have hieq : i = ArchimedeanClass₀.mk hxy0 := by
       apply le_antisymm
       · by_contra! hlt
@@ -772,8 +760,8 @@ theorem eval_lt (f : PartialHahnEmbedding seed) {x : M} (hx : x ∉ f.val.domain
         apply f.coeff_ne_zero
       · contrapose! hi
         rw [hzyclass] at hi
-        have hzy : z.val - y.val ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi i.val) := by
-          rw [ArchimedeanSubgroup.mem_submodule_Ioi_iff_of_ne_top K i.prop]
+        have hzy : z.val - y.val ∈ ball K i.val := by
+          rw [mem_ball_iff K i.prop]
           simpa using hi
         exact (f.coeff_eq_of_mem y.val (by simp) hzy (by simp)).le
     exact hieq ▸ hi
@@ -829,7 +817,7 @@ theorem truncate_eval_mem_range_extendFun (f : PartialHahnEmbedding seed) {x : M
     toLex (HahnSeries.truncateLinearMap K A (ofLex (f.eval x))) ∈
     LinearMap.range (f.extendFun hx).toFun := by
   rw [extendFun, LinearMap.mem_range]
-  by_cases h : ∃ y : f.val.domain, y.val - x ∈ ArchimedeanSubgroup.submodule K (UpperSet.Ioi A)
+  by_cases h : ∃ y : f.val.domain, y.val - x ∈ ball K A
   · -- if x is not isolated within A, the truncation at A equals to truncating
     -- an nearby y in the domain
     obtain ⟨y, hy⟩ := h
@@ -844,9 +832,7 @@ theorem truncate_eval_mem_range_extendFun (f : PartialHahnEmbedding seed) {x : M
       · simp_rw [HahnSeries.coeff_truncate_eq _ hBA]
         refine (f.evalCoeff_eq ?_).symm
         apply Set.mem_of_mem_of_subset hy
-        apply ArchimedeanSubgroup.submodule_antitone
-        apply (UpperSet.Ioi_strictMono _).monotone
-        simpa using hBA.le
+        simpa using ball_antitone _ _ hBA.le
       · simp_rw [HahnSeries.coeff_truncate_eq_zero _ hBA]
   · -- if x is isolated within A, truncating has no effect because the trailing coefficients
     -- are already 0
@@ -864,9 +850,7 @@ theorem truncate_eval_mem_range_extendFun (f : PartialHahnEmbedding seed) {x : M
         obtain ⟨y, hy⟩ := h
         use y
         apply Set.mem_of_mem_of_subset hy
-        apply ArchimedeanSubgroup.submodule_antitone
-        apply (UpperSet.Ioi_strictMono _).monotone
-        simpa using hBA
+        simpa using ball_antitone _ _ hBA
 
 theorem truncate_mem_range_extendFun (f : PartialHahnEmbedding seed) {x : M}
     (hx : x ∉ f.val.domain) (y : (f.extendFun hx).domain) (A : ArchimedeanClass₀ M) :
@@ -913,7 +897,7 @@ theorem lt_extend (f : PartialHahnEmbedding seed) {x : M} (hx : x ∉ f.val.doma
 
 We show that `sSup` makes sense on `PartialHahnEmbedding`, which allows us to use Zorn's lemma
 to asserts the existence of maximal embedding. Since we already show that we can create greater
-embedding by adding new elements, the maximal embedding must has the maximum domain.
+embedding by adding new elements, the maximal embedding must have the maximal domain.
 -/
 
 /-- A partial linear map that contains every element in a directed set of `PartialHahnEmbedding`. -/
@@ -989,11 +973,11 @@ theorem isPartialHahnEmbedding_sSupFun {c : Set (PartialHahnEmbedding seed)}
 noncomputable
 def sSup {c : Set (PartialHahnEmbedding seed)} (hnonempty : c.Nonempty)
     (hc : DirectedOn (· ≤ ·) c) : PartialHahnEmbedding seed :=
-    ⟨_, isPartialHahnEmbedding_sSupFun hnonempty hc⟩
+  ⟨_, isPartialHahnEmbedding_sSupFun hnonempty hc⟩
 
 variable (seed) in
 omit [Archimedean R] in
-theorem exists_isMax : ∃ (f : PartialHahnEmbedding seed), IsMax f := by
+theorem exists_isMax : ∃ f : PartialHahnEmbedding seed, IsMax f := by
   apply zorn_le_nonempty
   intro c hc hnonempty
   exact ⟨sSup hnonempty hc.directedOn, mem_upperBounds.mpr fun _ hf ↦ le_sSupFun hc.directedOn hf⟩
