@@ -381,7 +381,7 @@ noncomputable def archimedeanClassOrderIso : ArchimedeanClass (Lex (HahnSeries �
 
 @[simp]
 theorem archimedeanClassOrderIso_apply (x : Lex (HahnSeries Γ R)) :
-    (archimedeanClassOrderIso Γ R) (ArchimedeanClass.mk x) = (ofLex x).orderTop := by
+    archimedeanClassOrderIso Γ R (ArchimedeanClass.mk x) = (ofLex x).orderTop := by
   unfold archimedeanClassOrderIso
   obtain rfl | h := eq_or_ne x 0
   · simp
