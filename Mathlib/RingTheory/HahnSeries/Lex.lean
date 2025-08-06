@@ -377,7 +377,7 @@ variable (Γ R) in
 archimedean classes (with top) and `orderTop`. -/
 noncomputable def archimedeanClassOrderIso : ArchimedeanClass (Lex (HahnSeries Γ R)) ≃o WithTop Γ :=
   (ArchimedeanClass₀.withTopOrderIso _).symm.trans
-  (OrderIso.withTopCongr (archimedeanClass₀OrderIsoOrder _ _))
+  (archimedeanClass₀OrderIsoOrder _ _).withTopCongr
 
 @[simp]
 theorem archimedeanClassOrderIso_apply (x : Lex (HahnSeries Γ R)) :
