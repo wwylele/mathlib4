@@ -238,6 +238,16 @@ structure Piece (t : NNReal) (f : U → V) where
   det_le : ∀ x ∈ E, (↑t)⁻¹ ^ finrank ℝ U * |T.toLinearMap.det| ≤ (fderiv ℝ f x).normDet
   le_det : ∀ x ∈ E, (fderiv ℝ f x).normDet ≤ t ^ finrank ℝ U * |T.toLinearMap.det|
 
+instance (t : NNReal) (f : U → V) : Nonempty (Piece t f) := ⟨{
+  E := ∅
+  T := LinearEquiv.refl ℝ U
+  injOn := by simp
+  lipschitz := by simp
+  lipschitz_inv := by simp
+  det_le := by simp
+  le_det := by simp
+}⟩
+
 omit [FiniteDimensional ℝ U] in
 theorem Piece.inj (B : Set U) (t : NNReal) (ht : 1 < t) (ε : ℝ) (f : U → V)
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (c : U) (T : U ≃ₗ[ℝ] U) (i : PNat) :
@@ -333,7 +343,7 @@ theorem approx_linear_map {U : Type*} [NormedAddCommGroup U] [InnerProductSpace 
     simpa [ dist_eq_norm' ] using hs.exists_dist_lt f hδ_pos;
   refine ⟨ g, hg_s, fun x => ?_, fun x => ?_ ⟩;
   · have := ContinuousLinearMap.le_opNorm ( g - f ) x;
-    simp_all +decide;
+    simp_all
     nlinarith [ norm_nonneg x, norm_nonneg ( g x - f x ), norm_nonneg ( g x ),
       norm_nonneg ( f x ), mul_inv_cancel₀ ( ne_of_gt ( zero_lt_one.trans hb ) ),
       hc.2 x, mul_le_mul_of_nonneg_left hg_dist.le ( norm_nonneg x ),
@@ -354,7 +364,7 @@ theorem approx_linear_map {U : Type*} [NormedAddCommGroup U] [InnerProductSpace 
 -- end Aristotle
 
 theorem lemma3_3 [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    (t : NNReal) (ht : 1 < t) (f : U → V) (B : Set U)
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U}
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
     ∃ (Es : Set (Piece t f)), Es.Countable ∧ B = ⋃ p ∈ Es, p.E := by
   have ht' : (1 : ℝ) < t := by simpa using ht
@@ -472,6 +482,100 @@ theorem lemma3_3 [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpac
   simp [Piece.mk']
   grind [Eprop.mem_B]
 
+
+theorem nonempty_piece [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) : (lemma3_3 ht hker).choose.Nonempty := by
+  contrapose! hB with h
+  obtain hunion := (lemma3_3 ht hker).choose_spec.2
+  simpa [h] using hunion
+
+noncomputable def pieceSeq' [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) : ℕ → Piece t f :=
+  (Set.Countable.exists_eq_range (lemma3_3 ht hker).choose_spec.1
+    (nonempty_piece ht hB hker)).choose
+
+noncomputable def pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (k : ℕ) : Piece t f where
+  E := (pieceSeq' ht hB hker k).E \ ⋃ j < k, (pieceSeq' ht hB hker j).E
+  T := (pieceSeq' ht hB hker k).T
+  injOn := (pieceSeq' ht hB hker k).injOn.mono Set.diff_subset
+  lipschitz := (pieceSeq' ht hB hker k).lipschitz.mono (Set.image_mono Set.diff_subset)
+  lipschitz_inv := by
+    have hinj : Set.InjOn f
+        ((pieceSeq' ht hB hker k).E \ ⋃ j, ⋃ (_ : j < k), (pieceSeq' ht hB hker j).E) :=
+      (pieceSeq' ht hB hker k).injOn.mono Set.diff_subset
+    obtain h := (pieceSeq' ht hB hker k).lipschitz_inv
+    unfold LipschitzOnWith at ⊢ h
+    intro x hx y hy
+    convert h (Set.mem_of_mem_of_subset hx (Set.image_mono Set.diff_subset))
+      (Set.mem_of_mem_of_subset hy (Set.image_mono Set.diff_subset)) using 2
+    <;> simp only [Function.comp_apply, EmbeddingLike.apply_eq_iff_eq]
+    · obtain ⟨x', hx', rfl⟩ := (Set.mem_image _ _ _).mp hx
+      apply hinj
+      · apply Function.invFunOn_apply_mem hx'
+      · rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+          (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
+        exact hx'
+      · rw [Set.InjOn.leftInvOn_invFunOn hinj hx']
+        rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+          (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
+    · obtain ⟨x', hx', rfl⟩ := (Set.mem_image _ _ _).mp hy
+      apply hinj
+      · apply Function.invFunOn_apply_mem hx'
+      · rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+          (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
+        exact hx'
+      · rw [Set.InjOn.leftInvOn_invFunOn hinj hx']
+        rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+          (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
+  det_le x hx :=
+    (pieceSeq' ht hB hker k).det_le x (Set.mem_of_mem_of_subset hx Set.diff_subset)
+  le_det x hx :=
+    (pieceSeq' ht hB hker k).le_det x (Set.mem_of_mem_of_subset hx Set.diff_subset)
+
+theorem iUnion_pieceSeq' [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
+    B = ⋃ k, (pieceSeq' ht hB hker k).E := by
+  obtain hmem := (Set.Countable.exists_eq_range (lemma3_3 ht hker).choose_spec.1
+    (nonempty_piece ht hB hker)).choose_spec
+  rw [pieceSeq']
+  conv_lhs => rw [(lemma3_3 ht hker).choose_spec.2]
+  ext i
+  constructor
+  · simp only [Set.mem_iUnion, exists_prop, forall_exists_index, and_imp]
+    grind
+  · intro h
+    simp only [Set.mem_iUnion] at h ⊢
+    grind
+
+theorem iUnion_pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
+    B = ⋃ k, (pieceSeq ht hB hker k).E := by
+  conv_lhs => rw [iUnion_pieceSeq' ht hB hker]
+  apply subset_antisymm
+  · intro x
+    simp only [Set.mem_iUnion]
+    intro h
+    classical
+    use Nat.find h
+    simp only [pieceSeq, Nat.lt_find_iff, Set.mem_diff, Set.mem_iUnion, exists_prop, not_exists,
+      not_and]
+    constructor
+    · exact Nat.find_spec h
+    · intro y hy
+      apply Nat.find_min h
+      rw [Nat.lt_find_iff]
+      exact hy
+  · rw [Set.iUnion_subset_iff]
+    intro k
+    simp only [pieceSeq]
+    apply subset_trans Set.diff_subset
+    apply Set.subset_iUnion _ k
 
 theorem area_formula [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V] [BorelSpace V]
     [CompleteSpace V]
