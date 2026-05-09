@@ -12,7 +12,7 @@ public import Mathlib.Analysis.Normed.Operator.Basic
 import Mathlib.MeasureTheory.Measure.Lebesgue.EqHaar
 import Mathlib.MeasureTheory.Measure.Lebesgue.VolumeOfBalls
 import Mathlib.Topology.Instances.ENat
-
+import Mathlib.Topology.MetricSpace.HausdorffDimension
 
 open MeasureTheory RealInnerProductSpace Module LinearMap
 section random
@@ -1125,3 +1125,45 @@ theorem area_formula_injective {U V : Type*}
     simp only [Set.mem_image, not_exists, not_and] at hy
     specialize hy _ h
     simp at hy
+
+/-
+theorem area_sphere : μHE[2] (Metric.sphere 0 1 : Set (EuclideanSpace ℝ (Fin 3))) = sorry := by
+  let s := (Metric.sphere 0 1 : Set (EuclideanSpace ℝ (Fin 3))) \
+      ({!₂[0, 0, 1], !₂[0, 0, -1]})
+  have hremove_points : μHE[2] (Metric.sphere 0 1 : Set (EuclideanSpace ℝ (Fin 3))) =
+      μHE[finrank ℝ (EuclideanSpace ℝ (Fin 2))] s := by
+    simp only [finrank_euclideanSpace, Fintype.card_fin]
+    apply (MeasureTheory.measure_diff_null ?_).symm
+    rw [MeasureTheory.Measure.euclideanHausdorffMeasure_def]
+    simp only [Nat.cast_ofNat, Measure.smul_apply, Measure.nnreal_smul_coe_apply, mul_eq_zero,
+      ENNReal.coe_eq_zero]
+    right
+    suffices μH[(2 : NNReal)] ({!₂[0, 0, 1], !₂[0, 0, -1]} : Set (EuclideanSpace ℝ (Fin 3))) = 0 by
+      simpa
+    apply hausdorffMeasure_of_dimH_lt
+    rw [dimH_countable (by simp)]
+    simp
+  let f (p : EuclideanSpace ℝ (Fin 2)) : EuclideanSpace ℝ (Fin 3) :=
+    !₂[Real.cos (p 0) * Real.cos (p 1), Real.cos (p 0) * Real.sin (p 1), Real.sin (p 0)]
+  have hfderiv (p : EuclideanSpace ℝ (Fin 2)) :
+      fderiv ℝ f p = (Matrix.toEuclideanLin
+      !![-Real.sin (p 0) * Real.cos (p 1), -Real.cos (p 0) * Real.sin (p 1);
+         -Real.sin (p 0) * Real.sin (p 1), Real.cos (p 0) * Real.cos (p 1);
+         Real.cos (p 0), 0]
+      ).toContinuousLinearMap := by
+    ext v i
+    fin_cases i
+    · simp [f]
+      sorry
+    · sorry
+    · sorry
+
+  let t : Set (EuclideanSpace ℝ (Fin 2)) := WithLp.toLp 2 ''
+    (Set.univ.pi ![Set.Ioo (-Real.pi / 2) (Real.pi / 2), Set.Ico 0 (2 * Real.pi)])
+
+  have hmap : s = f '' t := sorry
+  have hinj : Set.InjOn f t := sorry
+  rw [hremove_points, hmap, area_formula_injective sorry sorry hinj]
+
+  sorry
+-/
