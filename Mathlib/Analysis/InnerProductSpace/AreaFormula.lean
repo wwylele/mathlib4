@@ -1084,27 +1084,30 @@ theorem area_formula [Nontrivial U]
       norm_cast at ht
       apply right ht hBm hB hker
 
-theorem area_formula_injective [Nontrivial U]
-    [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V] [BorelSpace V]
-    [CompleteSpace V] {f : U → V} {B : Set U} (hBm : MeasurableSet B)
-    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (hinjective : Set.InjOn f B) :
-    μHE[finrank ℝ U] (f '' B) = ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet := by
-  have hdiff (b : U) (hb : b ∈ B) : DifferentiableAt ℝ f b := by
+theorem area_formula_injective {U V : Type*}
+    [NormedAddCommGroup U] [InnerProductSpace ℝ U] [FiniteDimensional ℝ U]
+    [Nontrivial U] [MeasurableSpace U] [BorelSpace U]
+    [NormedAddCommGroup V] [InnerProductSpace ℝ V]
+    [MeasurableSpace V] [BorelSpace V] [CompleteSpace V]
+    {f : U → V} {s : Set U} (hs : MeasurableSet s)
+    (hker : ∀ x ∈ s, (fderiv ℝ f x).ker = ⊥) (hf : Set.InjOn f s) :
+    μHE[finrank ℝ U] (f '' s) = ∫⁻ x in s, ENNReal.ofReal (fderiv ℝ f x).normDet := by
+  have hdiff (b : U) (hb : b ∈ s) : DifferentiableAt ℝ f b := by
     specialize hker b hb
     contrapose! hker
     simp [fderiv_zero_of_not_differentiableAt hker]
-  have hcont : ContinuousOn f B := by
+  have hcont : ContinuousOn f s := by
     intro b hb
     apply ContinuousAt.continuousWithinAt
     apply (hdiff b hb).continuousAt
-  have hmeasurable : MeasurableSet (f '' B) := by
-    apply MeasurableSet.image_of_continuousOn_injOn hBm hcont hinjective
-  rw [area_formula hBm hker, ← lintegral_indicator_one hmeasurable]
+  have hmeasurable : MeasurableSet (f '' s) := by
+    apply MeasurableSet.image_of_continuousOn_injOn hs hcont hf
+  rw [area_formula hs hker, ← lintegral_indicator_one hmeasurable]
   apply lintegral_congr
   intro y
-  suffices (B ∩ f ⁻¹' {y}).encard = (f '' B).indicator 1 y by
-    simpa [this] using (map_indicator ENat.toENNRealRingHom (f '' B) 1 y).symm
-  by_cases hy : y ∈ f '' B
+  suffices (s ∩ f ⁻¹' {y}).encard = (f '' s).indicator 1 y by
+    simpa [this] using (map_indicator ENat.toENNRealRingHom (f '' s) 1 y).symm
+  by_cases hy : y ∈ f '' s
   · rw [Set.indicator_of_mem hy, Pi.one_apply, Set.encard_eq_one]
     simp only [Set.mem_image] at hy
     obtain ⟨x, hx, hxy⟩ := hy
@@ -1112,7 +1115,7 @@ theorem area_formula_injective [Nontrivial U]
     apply subset_antisymm
     · intro x' hx'
       simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_singleton_iff] at hx'
-      simpa using hinjective hx'.1 hx (hxy.symm ▸ hx'.2)
+      simpa using hf hx'.1 hx (hxy.symm ▸ hx'.2)
     · grind
   · rw [Set.indicator_of_notMem hy]
     rw [Set.encard_eq_zero, ← Set.disjoint_iff_inter_eq_empty, Set.disjoint_right]
