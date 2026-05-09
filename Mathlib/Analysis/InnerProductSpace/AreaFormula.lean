@@ -11,6 +11,7 @@ public import Mathlib.Analysis.InnerProductSpace.Defs
 public import Mathlib.Analysis.Normed.Operator.Basic
 import Mathlib.MeasureTheory.Measure.Lebesgue.EqHaar
 import Mathlib.MeasureTheory.Measure.Lebesgue.VolumeOfBalls
+import Mathlib.Topology.Instances.ENat
 
 
 open MeasureTheory RealInnerProductSpace Module LinearMap
@@ -72,12 +73,132 @@ theorem volume_ball_ne_top [MeasurableSpace U] [BorelSpace U] :
   rw [InnerProductSpace.volume_ball]
   simp
 
+/-variable {U : Type*} {V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]
+  [NormedAddCommGroup V] [InnerProductSpace ℝ V]-/
+
 structure Eprop (B : Set U) (t ε : ℝ) (f : U → V) (c : U) (T : U →ₗ[ℝ] U) (i : PNat) (b : U) where
   mem_B : b ∈ B
   mem_ball : b ∈ Metric.ball c (1 / i : ℝ)
   h1left : ∀ u : U, (t⁻¹ + ε) * ‖T u‖ ≤ ‖fderiv ℝ f b u‖
   h1right : ∀ u : U, ‖fderiv ℝ f b u‖ ≤ (t - ε) * ‖T u‖
   h2 : ∀ a ∈ Metric.ball c (2 / i : ℝ), ‖f a - f b - fderiv ℝ f b (a - b)‖ ≤ ε * ‖T (a - b)‖
+
+-- by aristotle
+theorem measurable_Eprop.extracted_1_4 {U : Type*} {V : Type*} [NormedAddCommGroup U]
+    [InnerProductSpace ℝ U] [FiniteDimensional ℝ U] [NormedAddCommGroup V]
+    [InnerProductSpace ℝ V] [MeasurableSpace U] [BorelSpace U]
+    [CompleteSpace V]
+    (t ε : ℝ) (f : U → V) (T : U →ₗ[ℝ] U) :
+    Measurable fun a ↦ ∀ (u : U), (t⁻¹ + ε) * ‖T u‖ ≤ ‖(fderiv ℝ f a) u‖ := by
+  by_contra h
+  refine h ?_
+  have h_closed : IsClosed {L : U →L[ℝ] V | ∀ u : U, (t⁻¹ + ε) * ‖T u‖ ≤ ‖L u‖} := by
+    simp only [Set.setOf_forall]
+    exact isClosed_iInter fun u => isClosed_le continuous_const (by fun_prop)
+  exact MeasurableSet.mem (h_closed.measurableSet.preimage (measurable_fderiv ℝ f))
+
+
+-- by aristotle
+theorem measurable_Eprop.extracted_1_6 {U : Type*} {V : Type*} [NormedAddCommGroup U]
+    [InnerProductSpace ℝ U] [FiniteDimensional ℝ U] [NormedAddCommGroup V]
+    [InnerProductSpace ℝ V] [MeasurableSpace U] [BorelSpace U]
+    [CompleteSpace V]
+    (t ε : ℝ) (f : U → V) (T : U →ₗ[ℝ] U) :
+    Measurable fun a ↦ ∀ (u : U), ‖(fderiv ℝ f a) u‖ ≤ (t - ε) * ‖T u‖ := by
+  by_contra h
+  refine h ?_
+  have h_closed : IsClosed {L : U →L[ℝ] V | ∀ u : U, ‖L u‖ ≤ (t - ε) * ‖T u‖} := by
+    simp only [Set.setOf_forall]
+    exact isClosed_iInter fun u => isClosed_le (by fun_prop) continuous_const
+  exact MeasurableSet.mem (h_closed.measurableSet.preimage (measurable_fderiv ℝ f))
+
+
+-- by aristotle
+theorem measurable_Eprop.extracted_1_5 {U : Type*} {V : Type*} [NormedAddCommGroup U]
+    [InnerProductSpace ℝ U] [FiniteDimensional ℝ U] [NormedAddCommGroup V]
+    [InnerProductSpace ℝ V] [MeasurableSpace U] [BorelSpace U]
+    [CompleteSpace V] (B : Set U) (hm : MeasurableSet B)
+    (ε : ℝ) (f : U → V) (hcont : ContinuousOn f B) (T : U →ₗ[ℝ] U) (c : U) (i : PNat) :
+    Measurable fun b ↦ (∀ a ∈ Metric.ball c (2 / ↑↑i), ‖f a - f b - (fderiv ℝ f b) (a - b)‖ ≤
+    ε * ‖T (a - b)‖) ∧ b ∈ B := by
+  rw [← measurableSet_setOf]
+  set r := (2 : ℝ) / ↑↑i
+  -- Define C ⊆ (U →L[ℝ] V) × B as the "closed constraint set"
+  set C : Set ((U →L[ℝ] V) × B) :=
+    {p | ∀ a ∈ Metric.ball c r,
+      ‖f a - f p.2.val - p.1 (a - p.2.val)‖ ≤ ε * ‖T (a - p.2.val)‖}
+  -- Auxiliary: the restriction of f to B is continuous
+  have hf_cont : Continuous (fun (b : B) => f b.val) :=
+    continuousOn_iff_continuous_restrict.mp hcont
+  -- Auxiliary: evaluation of ContinuousLinearMap is continuous
+  have heval : Continuous (fun (p : (U →L[ℝ] V) × U) => p.1 p.2) :=
+    isBoundedBilinearMap_apply.continuous
+  -- Step 1: C is closed (arbitrary intersection of closed sets)
+  have hC_closed : IsClosed C := by
+    have hC_eq : C = ⋂ (a : U) (_ : a ∈ Metric.ball c r),
+        {p : (U →L[ℝ] V) × B |
+          ‖f a - f p.2.val - p.1 (a - p.2.val)‖ ≤ ε * ‖T (a - p.2.val)‖} := by
+      ext p; simp [C, Set.mem_iInter]
+    rw [hC_eq]
+    apply isClosed_biInter
+    intro a _
+    apply isClosed_le
+    · -- ‖f a - f p.2.val - p.1 (a - p.2.val)‖ is continuous in p
+      refine Continuous.norm ?_
+      exact (continuous_const.sub (hf_cont.comp continuous_snd)).sub
+        (heval.comp (Continuous.prodMk continuous_fst
+          (continuous_const.sub (continuous_subtype_val.comp continuous_snd))))
+    · -- ε * ‖T (a - p.2.val)‖ is continuous in p
+      exact continuous_const.mul
+        (T.toContinuousLinearMap.continuous.comp
+          (continuous_const.sub (continuous_subtype_val.comp continuous_snd))).norm
+  -- Step 2: C is measurable (since (U →L[ℝ] V) × B has OpensMeasurableSpace)
+  have hC_meas : MeasurableSet C := hC_closed.measurableSet
+  -- Step 3: ψ : B → (U →L[ℝ] V) × B is measurable
+  set ψ : B → (U →L[ℝ] V) × B := fun b => (fderiv ℝ f b.val, b) with hψ_def
+  have hψ_meas : Measurable ψ :=
+    Measurable.prod ((measurable_fderiv ℝ f).comp measurable_subtype_coe) measurable_id
+  -- Step 4: ψ⁻¹'(C) is measurable in B
+  have hpre : MeasurableSet (ψ ⁻¹' C) := hψ_meas hC_meas
+  -- Step 5: The image under Subtype.val is measurable in U
+  have himg : MeasurableSet (Subtype.val '' (ψ ⁻¹' C)) := hm.subtype_image hpre
+  -- Step 6: Our set equals this image
+  convert himg using 1
+  ext b
+  simp only [Set.mem_setOf_eq, Set.mem_image, Set.mem_preimage]
+  constructor
+  · rintro ⟨hball, hB⟩
+    exact ⟨⟨b, hB⟩, hball, rfl⟩
+  · rintro ⟨⟨b', hB'⟩, hball, rfl⟩
+    exact ⟨hball, hB'⟩
+
+theorem measurable_Eprop [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    (B : Set U) (hm : MeasurableSet B) (t ε : ℝ) (f : U → V) (c : U) (T : U →ₗ[ℝ] U) (i : PNat)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
+    Measurable (Eprop B t ε f c T i) := by
+  have hdiff (b : U) (hb : b ∈ B) : DifferentiableAt ℝ f b := by
+    specialize hker b hb
+    contrapose! hker
+    simp [fderiv_zero_of_not_differentiableAt hker]
+  have hcont : ContinuousOn f B := by
+    intro b hb
+    apply ContinuousAt.continuousWithinAt
+    apply (hdiff b hb).continuousAt
+  obtain k := measurable_fderiv ℝ f
+  suffices Measurable (fun b ↦ (b ∈ Metric.ball c (1 / i : ℝ))
+      ∧ (∀ u : U, (t⁻¹ + ε) * ‖T u‖ ≤ ‖fderiv ℝ f b u‖) ∧
+      (∀ u : U, ‖fderiv ℝ f b u‖ ≤ (t - ε) * ‖T u‖) ∧
+      (∀ a ∈ Metric.ball c (2 / i : ℝ), ‖f a - f b - fderiv ℝ f b (a - b)‖ ≤ ε * ‖T (a - b)‖) ∧
+      b ∈ B) by
+    convert this
+    grind [Eprop]
+  apply Measurable.and
+  · measurability
+  apply Measurable.and
+  · apply measurable_Eprop.extracted_1_4
+  apply Measurable.and
+  · apply measurable_Eprop.extracted_1_6
+  apply measurable_Eprop.extracted_1_5 B hm _ _ hcont
 
 namespace Eprop
 
@@ -229,24 +350,15 @@ theorem hclaimleft [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
 
 end Eprop
 
-structure Piece (t : NNReal) (f : U → V) where
+structure Piece [MeasurableSpace U] (t : NNReal) (f : U → V) where
   E : Set U
+  measurablSet : MeasurableSet E
   T : U ≃ₗ[ℝ] U
   injOn : Set.InjOn f E
   lipschitz : LipschitzOnWith t (f ∘ T.symm) (T '' E)
   lipschitz_inv : LipschitzOnWith t (T ∘ f.invFunOn E) (f '' E)
   det_le : ∀ x ∈ E, (↑t)⁻¹ ^ finrank ℝ U * |T.toLinearMap.det| ≤ (fderiv ℝ f x).normDet
   le_det : ∀ x ∈ E, (fderiv ℝ f x).normDet ≤ t ^ finrank ℝ U * |T.toLinearMap.det|
-
-instance (t : NNReal) (f : U → V) : Nonempty (Piece t f) := ⟨{
-  E := ∅
-  T := LinearEquiv.refl ℝ U
-  injOn := by simp
-  lipschitz := by simp
-  lipschitz_inv := by simp
-  det_le := by simp
-  le_det := by simp
-}⟩
 
 omit [FiniteDimensional ℝ U] in
 theorem Piece.inj (B : Set U) (t : NNReal) (ht : 1 < t) (ε : ℝ) (f : U → V)
@@ -255,12 +367,16 @@ theorem Piece.inj (B : Set U) (t : NNReal) (ht : 1 < t) (ε : ℝ) (f : U → V)
   intro a ha b hb h
   exact Eprop.inj hker ht ha hb h
 
-def Piece.mk' [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    (B : Set U) (t : NNReal) (ht : 1 < t) (ε : ℝ)
+def Piece.mk' [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    (B : Set U) (hB : MeasurableSet B) (t : NNReal) (ht : 1 < t) (ε : ℝ)
     (hεpos : 0 < (↑t)⁻¹ + ε) (h0ε : 0 ≤ ε) (hεright : 1 < t - ε)
     (f : U → V) (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (c : U) (T : U ≃ₗ[ℝ] U) (i : PNat) :
     Piece t f where
   E := {b | Eprop B t ε f c T i b}
+  measurablSet := by
+    rw [measurableSet_setOf]
+    apply measurable_Eprop B hB
+    exact hker
   T := T
   injOn := by apply Piece.inj B t ht ε f hker
   lipschitz := by
@@ -364,7 +480,7 @@ theorem approx_linear_map {U : Type*} [NormedAddCommGroup U] [InnerProductSpace 
 -- end Aristotle
 
 theorem lemma3_3 [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U}
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : MeasurableSet B)
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
     ∃ (Es : Set (Piece t f)), Es.Countable ∧ B = ⋃ p ∈ Es, p.E := by
   have ht' : (1 : ℝ) < t := by simpa using ht
@@ -401,7 +517,7 @@ theorem lemma3_3 [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpac
   let C := hU.choose
   let S : Set (U ≃ₗ[ℝ] U) := LinearEquiv.toLinearMap ⁻¹'
     (ContinuousLinearMap.toLinearMap '' hUU.choose)
-  use ⋃ c ∈ C, ⋃ T ∈ S, Set.range (Piece.mk' B t ht ε hεpos h0ε hεright f hker c T)
+  use ⋃ c ∈ C, ⋃ T ∈ S, Set.range (Piece.mk' B hB t ht ε hεpos h0ε hεright f hker c T)
   constructor
   · rw [Set.Countable.biUnion_iff (by
       apply hU.choose_spec.1)]
@@ -484,30 +600,37 @@ theorem lemma3_3 [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpac
 
 
 theorem nonempty_piece [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
-    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) : (lemma3_3 ht hker).choose.Nonempty := by
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B) (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) : (lemma3_3 ht hBm hker).choose.Nonempty := by
   contrapose! hB with h
-  obtain hunion := (lemma3_3 ht hker).choose_spec.2
+  obtain hunion := (lemma3_3 ht hBm hker).choose_spec.2
   simpa [h] using hunion
 
 noncomputable def pieceSeq' [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B) (hB : B.Nonempty)
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) : ℕ → Piece t f :=
-  (Set.Countable.exists_eq_range (lemma3_3 ht hker).choose_spec.1
-    (nonempty_piece ht hB hker)).choose
+  (Set.Countable.exists_eq_range (lemma3_3 ht hBm hker).choose_spec.1
+    (nonempty_piece ht hBm hB hker)).choose
 
 noncomputable def pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B) (hB : B.Nonempty)
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (k : ℕ) : Piece t f where
-  E := (pieceSeq' ht hB hker k).E \ ⋃ j < k, (pieceSeq' ht hB hker j).E
-  T := (pieceSeq' ht hB hker k).T
-  injOn := (pieceSeq' ht hB hker k).injOn.mono Set.diff_subset
-  lipschitz := (pieceSeq' ht hB hker k).lipschitz.mono (Set.image_mono Set.diff_subset)
+  E := (pieceSeq' ht hBm hB hker k).E \ ⋃ j < k, (pieceSeq' ht hBm hB hker j).E
+  measurablSet := by
+    apply (pieceSeq' ht hBm hB hker k).measurablSet.diff
+    apply MeasurableSet.iUnion
+    intro i
+    apply MeasurableSet.iUnion
+    intro _
+    exact (pieceSeq' ht hBm hB hker i).measurablSet
+  T := (pieceSeq' ht hBm hB hker k).T
+  injOn := (pieceSeq' ht hBm hB hker k).injOn.mono Set.diff_subset
+  lipschitz := (pieceSeq' ht hBm hB hker k).lipschitz.mono (Set.image_mono Set.diff_subset)
   lipschitz_inv := by
     have hinj : Set.InjOn f
-        ((pieceSeq' ht hB hker k).E \ ⋃ j, ⋃ (_ : j < k), (pieceSeq' ht hB hker j).E) :=
-      (pieceSeq' ht hB hker k).injOn.mono Set.diff_subset
-    obtain h := (pieceSeq' ht hB hker k).lipschitz_inv
+        ((pieceSeq' ht hBm hB hker k).E \ ⋃ j, ⋃ (_ : j < k), (pieceSeq' ht hBm hB hker j).E) :=
+      (pieceSeq' ht hBm hB hker k).injOn.mono Set.diff_subset
+    obtain h := (pieceSeq' ht hBm hB hker k).lipschitz_inv
     unfold LipschitzOnWith at ⊢ h
     intro x hx y hy
     convert h (Set.mem_of_mem_of_subset hx (Set.image_mono Set.diff_subset))
@@ -516,34 +639,34 @@ noncomputable def pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [Co
     · obtain ⟨x', hx', rfl⟩ := (Set.mem_image _ _ _).mp hx
       apply hinj
       · apply Function.invFunOn_apply_mem hx'
-      · rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+      · rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hBm hB hker k).injOn
           (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
         exact hx'
       · rw [Set.InjOn.leftInvOn_invFunOn hinj hx']
-        rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+        rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hBm hB hker k).injOn
           (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
     · obtain ⟨x', hx', rfl⟩ := (Set.mem_image _ _ _).mp hy
       apply hinj
       · apply Function.invFunOn_apply_mem hx'
-      · rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+      · rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hBm hB hker k).injOn
           (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
         exact hx'
       · rw [Set.InjOn.leftInvOn_invFunOn hinj hx']
-        rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hB hker k).injOn
+        rw [Set.InjOn.leftInvOn_invFunOn (pieceSeq' ht hBm hB hker k).injOn
           (Set.mem_of_mem_of_subset hx' Set.diff_subset)]
   det_le x hx :=
-    (pieceSeq' ht hB hker k).det_le x (Set.mem_of_mem_of_subset hx Set.diff_subset)
+    (pieceSeq' ht hBm hB hker k).det_le x (Set.mem_of_mem_of_subset hx Set.diff_subset)
   le_det x hx :=
-    (pieceSeq' ht hB hker k).le_det x (Set.mem_of_mem_of_subset hx Set.diff_subset)
+    (pieceSeq' ht hBm hB hker k).le_det x (Set.mem_of_mem_of_subset hx Set.diff_subset)
 
 theorem iUnion_pieceSeq' [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B) (hB : B.Nonempty)
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
-    B = ⋃ k, (pieceSeq' ht hB hker k).E := by
-  obtain hmem := (Set.Countable.exists_eq_range (lemma3_3 ht hker).choose_spec.1
-    (nonempty_piece ht hB hker)).choose_spec
+    B = ⋃ k, (pieceSeq' ht hBm hB hker k).E := by
+  obtain hmem := (Set.Countable.exists_eq_range (lemma3_3 ht hBm hker).choose_spec.1
+    (nonempty_piece ht hBm hB hker)).choose_spec
   rw [pieceSeq']
-  conv_lhs => rw [(lemma3_3 ht hker).choose_spec.2]
+  conv_lhs => rw [(lemma3_3 ht hBm hker).choose_spec.2]
   ext i
   constructor
   · simp only [Set.mem_iUnion, exists_prop, forall_exists_index, and_imp]
@@ -553,10 +676,10 @@ theorem iUnion_pieceSeq' [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [Comp
     grind
 
 theorem iUnion_pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B) (hB : B.Nonempty)
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
-    B = ⋃ k, (pieceSeq ht hB hker k).E := by
-  conv_lhs => rw [iUnion_pieceSeq' ht hB hker]
+    B = ⋃ k, (pieceSeq ht hBm hB hker k).E := by
+  conv_lhs => rw [iUnion_pieceSeq' ht hBm hB hker]
   apply subset_antisymm
   · intro x
     simp only [Set.mem_iUnion]
@@ -577,10 +700,214 @@ theorem iUnion_pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [Compl
     apply subset_trans Set.diff_subset
     apply Set.subset_iUnion _ k
 
+theorem disjoint_pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B) (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) {i j : ℕ} (hij : i ≠ j) :
+    Disjoint (pieceSeq ht hBm hB hker i).E (pieceSeq ht hBm hB hker j).E := by
+  wlog hlt : j < i
+  · rw [disjoint_comm]
+    apply disjoint_pieceSeq
+    exact hij.symm
+  rw [Set.disjoint_right]
+  intro x hx
+  apply Set.notMem_diff_of_mem
+  simp only [Set.mem_iUnion, exists_prop]
+  use j
+  refine ⟨hlt, ?_⟩
+  apply Set.mem_of_mem_of_subset hx
+  apply Set.diff_subset
+
+/-variable (U) in
+def block (k : ℝ) (c : Fin (finrank ℝ U) → ℤ) :=
+    {u : U | ∀ i, (stdOrthonormalBasis ℝ U).repr u i ∈ Set.Ico (c i / k) ((c i + 1) / k)}
+
+variable (U) in
+def blocks (k : ℝ) := Set.range (block U k)
+
+variable (U) in
+theorem countable_blocks (k : ℝ) : (blocks U k).Countable :=
+  Set.countable_range _
+
+noncomputable def g [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (k : ℝ)
+    (v : V) : ENNReal :=
+  ∑' (i : blocks U k) (j), (f '' ((pieceSeq ht hB hker j).E ∩ i.val)).indicator 1 v
+
+theorem g_tendsto [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (v : V) :
+    Filter.Tendsto (g ht hB hker · v) Filter.atTop (nhds (B ∩ f ⁻¹' {v}).encard.toENNReal) := by
+
+  sorry-/
+
+
+
+/-def F [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
+    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (i j : ℕ)-/
+
+theorem LipschitzOnWith.euclideanHausdorffMeasure_image_le {X : Type*} {Y : Type*}
+    [EMetricSpace X] [EMetricSpace Y] [MeasurableSpace X] [BorelSpace X] [MeasurableSpace Y]
+    [BorelSpace Y] {K : NNReal} {f : X → Y} {s : Set X} (h : LipschitzOnWith K f s) {d : ℕ} :
+    μHE[d] (f '' s) ≤ ↑K ^ d * μHE[d] s := by
+  simp_rw [MeasureTheory.Measure.euclideanHausdorffMeasure_def,
+    Measure.smul_apply, Measure.nnreal_smul_coe_apply]
+  grw [h.hausdorffMeasure_image_le (by simp)]
+  rw [mul_left_comm]
+  simp
+
+
+theorem area_left [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (j : ℕ) :
+    (↑t)⁻¹ ^ (2 * finrank ℝ U) * μHE[finrank ℝ U] (f '' (pieceSeq ht hBm hB hker j).E) ≤
+    ∫⁻ x in (pieceSeq ht hBm hB hker j).E, ENNReal.ofReal (fderiv ℝ f x).normDet := by
+  have ht0 : t ≠ 0 := fun h ↦ by simp [h] at ht
+  calc
+  _ = (↑t)⁻¹ ^ finrank ℝ U * (((↑t) ^ finrank ℝ U)⁻¹ *
+      μHE[finrank ℝ U] ((f ∘ (pieceSeq ht hBm hB hker j).T.symm) ''
+      (pieceSeq ht hBm hB hker j).T.toLinearMap '' (pieceSeq ht hBm hB hker j).E)) := by
+    rw [← Set.image_comp]
+    simp only [LinearEquiv.coe_coe, Function.comp_apply, LinearEquiv.symm_apply_apply]
+    rw [ENNReal.inv_pow]
+    ring
+  _ ≤ (↑t)⁻¹ ^ finrank ℝ U * volume ((pieceSeq ht hBm hB hker j).T.toLinearMap ''
+      (pieceSeq ht hBm hB hker j).E) := by
+    rw [← InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+    refine mul_le_mul_of_nonneg_left ?_ (by simp)
+    rw [ENNReal.inv_mul_le_iff (by simp [ht0]) (by simp)]
+    apply (pieceSeq ht hBm hB hker j).lipschitz.euclideanHausdorffMeasure_image_le
+  _ = (↑t)⁻¹ ^ finrank ℝ U * ENNReal.ofReal |(pieceSeq ht hBm hB hker j).T.toLinearMap.det| *
+      volume (pieceSeq ht hBm hB hker j).E := by
+    rw [MeasureTheory.Measure.addHaar_image_linearMap, mul_assoc]
+  _ ≤ _ := by
+    rw [← MeasureTheory.setLIntegral_const]
+    apply MeasureTheory.lintegral_mono_ae
+    apply MeasureTheory.ae_restrict_of_forall_mem (pieceSeq ht hBm hB hker j).measurablSet
+    intro x hx
+    rw [← ENNReal.toReal_le_toReal (by finiteness) (by finiteness)]
+    simpa [LinearMap.normDet_nonneg] using (pieceSeq ht hBm hB hker j).det_le x hx
+
+theorem area_right [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (j : ℕ) :
+    ∫⁻ x in (pieceSeq ht hBm hB hker j).E, ENNReal.ofReal (fderiv ℝ f x).normDet ≤
+    (↑t) ^ (2 * finrank ℝ U) * μHE[finrank ℝ U] (f '' (pieceSeq ht hBm hB hker j).E) := by
+  have ht0 : t ≠ 0 := fun h ↦ by simp [h] at ht
+  calc
+  _ ≤ (↑t) ^ finrank ℝ U * ENNReal.ofReal |(pieceSeq ht hBm hB hker j).T.toLinearMap.det| *
+      volume (pieceSeq ht hBm hB hker j).E := by
+    rw [← MeasureTheory.setLIntegral_const]
+    apply MeasureTheory.lintegral_mono_ae
+    apply MeasureTheory.ae_restrict_of_forall_mem (pieceSeq ht hBm hB hker j).measurablSet
+    intro x hx
+    rw [← ENNReal.toReal_le_toReal (by finiteness) (by finiteness)]
+    simpa [LinearMap.normDet_nonneg] using (pieceSeq ht hBm hB hker j).le_det x hx
+  _ = (↑t) ^ finrank ℝ U * volume ((pieceSeq ht hBm hB hker j).T.toLinearMap ''
+      (pieceSeq ht hBm hB hker j).E) := by
+    rw [MeasureTheory.Measure.addHaar_image_linearMap, mul_assoc]
+  _ = (↑t) ^ finrank ℝ U * μHE[finrank ℝ U] (((pieceSeq ht hBm hB hker j).T
+      ∘ f.invFunOn (pieceSeq ht hBm hB hker j).E) '' f '' (pieceSeq ht hBm hB hker j).E) := by
+    rw [Set.image_comp, Set.InjOn.invFunOn_image (pieceSeq ht hBm hB hker j).injOn (subset_refl _),
+      InnerProductSpace.euclideanHausdorffMeasure_eq_volume]
+    simp
+  _ ≤ (↑t) ^ finrank ℝ U * ((↑t) ^ finrank ℝ U *
+      μHE[finrank ℝ U] (f '' (pieceSeq ht hBm hB hker j).E)) := by
+    refine mul_le_mul_of_nonneg_left ?_ (by simp)
+    apply (pieceSeq ht hBm hB hker j).lipschitz_inv.euclideanHausdorffMeasure_image_le
+  _ ≤ _ := by
+    apply le_of_eq
+    ring
+
+theorem Set.encard_iUnion {α : Type*} {ι : Type*} {s : ι → Set α}
+    (hs : Pairwise (Function.onFun Disjoint s)) :
+    (⋃ (i : ι), s i).encard = ∑' (i : ι), (s i).encard := sorry
+
+open Classical in
+theorem glue [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (j : ℕ) :
+    ∫⁻ (y : V), (B ∩ f ⁻¹' {y}).encard.toENNReal ∂(μHE[finrank ℝ U]) =
+    ∑' j, μHE[finrank ℝ U] (f '' (pieceSeq ht hBm hB hker j).E) := by
+  have hdiff (b : U) (hb : b ∈ B) : DifferentiableAt ℝ f b := by
+    specialize hker b hb
+    contrapose! hker
+    simp [fderiv_zero_of_not_differentiableAt hker]
+  have hcont : ContinuousOn f B := by
+    intro b hb
+    apply ContinuousAt.continuousWithinAt
+    apply (hdiff b hb).continuousAt
+  have hmeasurablefe (j : ℕ) : MeasurableSet (f '' (pieceSeq ht hBm hB hker j).E) := by
+    refine MeasurableSet.image_of_continuousOn_injOn (pieceSeq ht hBm hB hker j).measurablSet
+      (hcont.mono ?_) (pieceSeq ht hBm hB hker j).injOn
+    conv_rhs => rw [iUnion_pieceSeq ht hBm hB hker]
+    apply Set.subset_iUnion _ j
+  calc
+  _ = ∫⁻ y, ((⋃ j, (pieceSeq ht hBm hB hker j).E) ∩ f ⁻¹' {y}).encard.toENNReal
+      ∂(μHE[finrank ℝ U]) := by
+    congr!
+    exact iUnion_pieceSeq ht hBm hB hker
+  _ = ∫⁻ y, ∑' j, (f '' (pieceSeq ht hBm hB hker j).E).indicator 1 y
+      ∂(μHE[finrank ℝ U]) := by
+    apply lintegral_congr
+    intro y
+    rw [Set.iUnion_inter]
+    rw [Set.encard_iUnion (by
+      intro i j hij
+      rw [Function.onFun]
+      apply Set.disjoint_of_subset Set.inter_subset_left Set.inter_subset_left
+        (disjoint_pieceSeq ht hBm hB hker hij))]
+    rw [← ENat.toENNRealRingHom_apply]
+    rw [Summable.map_tsum (by sorry) _ (by sorry)]
+    apply tsum_congr
+    intro j
+    suffices ((pieceSeq ht hBm hB hker j).E ∩ f ⁻¹' {y}).encard =
+        (f '' (pieceSeq ht hBm hB hker j).E).indicator 1 y by
+      simp [this, map_indicator]
+    by_cases hy : y ∈ f '' (pieceSeq ht hBm hB hker j).E
+    · rw [Set.indicator_of_mem hy, Pi.one_apply, Set.encard_eq_one]
+      simp only [Set.mem_image] at hy
+      obtain ⟨x, hx, hxy⟩ := hy
+      use x
+      apply subset_antisymm
+      · intro x' hx'
+        simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_singleton_iff] at hx'
+        simpa using (pieceSeq ht hBm hB hker j).injOn hx'.1 hx (hxy.symm ▸ hx'.2)
+      · grind
+    · rw [Set.indicator_of_notMem hy]
+      rw [Set.encard_eq_zero, ← Set.disjoint_iff_inter_eq_empty, Set.disjoint_right]
+      intro fy hfy h
+      rw [Set.mem_preimage, Set.mem_singleton_iff] at hfy
+      rw [← hfy] at hy
+      simp only [Set.mem_image, not_exists, not_and] at hy
+      specialize hy _ h
+      simp at hy
+  _ = ∑' j, ∫⁻ y, (f '' (pieceSeq ht hBm hB hker j).E).indicator 1 y
+      ∂(μHE[finrank ℝ U]) := by
+    apply MeasureTheory.lintegral_tsum
+    intro j
+    apply Measurable.aemeasurable
+    apply Measurable.ite ?_ (by fun_prop) (by fun_prop)
+    rw [Set.setOf_mem_eq]
+    apply hmeasurablefe
+  _ = _ := by
+    apply tsum_congr
+    intro j
+    rw [← MeasureTheory.setLIntegral_one]
+    rw [MeasureTheory.lintegral_indicator (hmeasurablefe j)]
+    simp
+
 theorem area_formula [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V] [BorelSpace V]
-    [CompleteSpace V]
-    (K : NNReal) (f : U → V) (A : Set U)
-    (hf : LipschitzOnWith K f A)
-    (hker : ∀ x ∈ A, (fderiv ℝ f x).ker = ⊥) :
-    ∫⁻ x in A, ENNReal.ofReal (fderiv ℝ f x).normDet =
-    ∫⁻ (y : V),  (A ∩ f ⁻¹' {y}).encard.toENNReal ∂(μHE[finrank ℝ U]) := sorry
+    [CompleteSpace V] (f : U → V) (B : Set U)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
+    ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet =
+    ∫⁻ (y : V), (B ∩ f ⁻¹' {y}).encard.toENNReal ∂(μHE[finrank ℝ U]) := sorry
