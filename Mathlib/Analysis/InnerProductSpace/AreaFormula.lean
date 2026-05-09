@@ -73,9 +73,6 @@ theorem volume_ball_ne_top [MeasurableSpace U] [BorelSpace U] :
   rw [InnerProductSpace.volume_ball]
   simp
 
-/-variable {U : Type*} {V : Type*} [NormedAddCommGroup U] [InnerProductSpace ℝ U]
-  [NormedAddCommGroup V] [InnerProductSpace ℝ V]-/
-
 structure Eprop (B : Set U) (t ε : ℝ) (f : U → V) (c : U) (T : U →ₗ[ℝ] U) (i : PNat) (b : U) where
   mem_B : b ∈ B
   mem_ball : b ∈ Metric.ball c (1 / i : ℝ)
@@ -717,38 +714,6 @@ theorem disjoint_pieceSeq [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [Com
   apply Set.mem_of_mem_of_subset hx
   apply Set.diff_subset
 
-/-variable (U) in
-def block (k : ℝ) (c : Fin (finrank ℝ U) → ℤ) :=
-    {u : U | ∀ i, (stdOrthonormalBasis ℝ U).repr u i ∈ Set.Ico (c i / k) ((c i + 1) / k)}
-
-variable (U) in
-def blocks (k : ℝ) := Set.range (block U k)
-
-variable (U) in
-theorem countable_blocks (k : ℝ) : (blocks U k).Countable :=
-  Set.countable_range _
-
-noncomputable def g [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
-    [BorelSpace V]
-    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
-    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (k : ℝ)
-    (v : V) : ENNReal :=
-  ∑' (i : blocks U k) (j), (f '' ((pieceSeq ht hB hker j).E ∩ i.val)).indicator 1 v
-
-theorem g_tendsto [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
-    [BorelSpace V]
-    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
-    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (v : V) :
-    Filter.Tendsto (g ht hB hker · v) Filter.atTop (nhds (B ∩ f ⁻¹' {v}).encard.toENNReal) := by
-
-  sorry-/
-
-
-
-/-def F [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [CompleteSpace V]
-    {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hB : B.Nonempty)
-    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (i j : ℕ)-/
-
 theorem LipschitzOnWith.euclideanHausdorffMeasure_image_le {X : Type*} {Y : Type*}
     [EMetricSpace X] [EMetricSpace Y] [MeasurableSpace X] [BorelSpace X] [MeasurableSpace Y]
     [BorelSpace Y] {K : NNReal} {f : X → Y} {s : Set X} (h : LipschitzOnWith K f s) {d : ℕ} :
@@ -826,18 +791,132 @@ theorem area_right [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [Measurable
     apply le_of_eq
     ring
 
+
+--Aristotle
+lemma Set.Infinite.iUnion_of_pairwise_disjoint {α ι : Type*} {s : ι → Set α}
+    (hs : Pairwise (Function.onFun Disjoint s))
+    (h : Set.Infinite {i | (s i).Nonempty}) : (⋃ i, s i).Infinite := by
+  have h_choose : ∃ f : {i : ι | (s i).Nonempty} → α,
+      ∀ i : {i : ι | (s i).Nonempty}, f i ∈ s i := by
+    exact ⟨ fun i => Classical.choose i.2, fun i => Classical.choose_spec i.2 ⟩;
+  obtain ⟨f, hf⟩ := h_choose;
+  have h_distinct : Function.Injective f := by
+    intro i j hij; have := hs;
+    simp only [coe_setOf, mem_setOf_eq, Subtype.forall] at hf
+    exact Subtype.ext ( Classical.not_not.1 fun hi => Set.disjoint_left.1
+      ( this hi ) ( hf _ i.2 ) ( hij.symm ▸ hf _ j.2 ) );
+  have h_image_infinite : Set.Infinite (Set.range f) := by
+    convert Set.infinite_range_of_injective h_distinct;
+    exact Set.infinite_coe_iff.mpr h;
+  exact h_image_infinite.mono fun x hx => by
+    obtain ⟨ i, rfl ⟩ := hx;
+    exact Set.mem_iUnion_of_mem _ ( hf i ) ;
+
+
+--Aristotle
+lemma Set.encard_biUnion_finset {α ι : Type*} {s : ι → Set α}
+    (hs : Pairwise (Function.onFun Disjoint s))
+    (t : Finset ι) :
+    (⋃ i ∈ t, s i).encard = ∑ i ∈ t, (s i).encard := by
+  classical
+  induction t using Finset.induction with --with i t hi ih;
+  | empty => simp
+  | insert i t hi ih =>
+    simp_all only [Finset.mem_insert, iUnion_iUnion_eq_or_left, not_false_eq_true,
+      Finset.sum_insert];
+    rw [ ← ih, Set.encard_union_eq ];
+    exact Set.disjoint_iUnion₂_right.mpr fun j hj => hs ( by aesop )
+
+--Aristotle
+lemma ENat.tsum_eq_top_of_ne_zero {ι : Type*} {f : ι → ℕ∞}
+    (h : Set.Infinite {i | f i ≠ 0}) : ∑' i, f i = ⊤ := by
+  by_contra h_ne
+  obtain ⟨n, hn⟩ : ∃ n : ℕ, ∑' i, f i = n := by
+    cases h_val : ∑' i, f i with
+    | top => exact absurd h_val h_ne
+    | coe n => exact ⟨n, rfl⟩
+  obtain ⟨s, hs_sub, hs_card⟩ := h.exists_subset_card_eq (n + 1)
+  have h1 : (↑(n + 1) : ℕ∞) ≤ ∑ i ∈ s, f i := by
+    rw [← hs_card, Finset.card_eq_sum_ones]; push_cast
+    exact Finset.sum_le_sum fun i hi => ENat.one_le_iff_ne_zero.mpr (hs_sub hi)
+  have h_summ : Summable f := ⟨_, hasSum_of_isLUB _ isLUB_iSup⟩
+  have h2 : ∑ i ∈ s, f i ≤ ∑' i, f i :=
+    h_summ.sum_le_tsum s (fun i _ => zero_le)
+  have h3 : (↑(n + 1) : ℕ∞) ≤ ↑n := h1.trans (h2.trans hn.le)
+  exact absurd h3 (by exact_mod_cast Nat.lt_irrefl n)
+
+--Aristotle
+lemma ENat.le_tsum {ι : Type*} (f : ι → ℕ∞) (i : ι) : f i ≤ ∑' j, f j :=
+  Summable.le_tsum' ⟨_, hasSum_of_isLUB _ isLUB_iSup⟩ i
+
+--Aristotle
 theorem Set.encard_iUnion {α : Type*} {ι : Type*} {s : ι → Set α}
     (hs : Pairwise (Function.onFun Disjoint s)) :
-    (⋃ (i : ι), s i).encard = ∑' (i : ι), (s i).encard := sorry
+    (⋃ (i : ι), s i).encard = ∑' (i : ι), (s i).encard := by
+  by_cases h_some_inf : ∃ i, (s i).Infinite
+  · -- Case 1: Some s i is infinite
+    obtain ⟨i, hi⟩ := h_some_inf
+    have h1 : (⋃ j, s j).Infinite := hi.mono (Set.subset_iUnion s i)
+    have h2 : (s i).encard = ⊤ := Set.encard_eq_top_iff.mpr hi
+    rw [Set.encard_eq_top_iff.mpr h1]
+    have : ∑' j, (s j).encard ≥ (s i).encard := ENat.le_tsum _ i
+    rw [h2] at this
+    exact (top_le_iff.mp this).symm
+  · push Not at h_some_inf
+    by_cases h_fin_support : Set.Finite {i | (s i).Nonempty}
+    · -- Case 3: finitely many nonempty sets
+      have h_zero : ∀ i, i ∉ h_fin_support.toFinset → (s i).encard = 0 := by
+        intro i hi
+        simp only [Finite.mem_toFinset, mem_setOf_eq] at hi
+        exact Set.encard_eq_zero.mpr (Set.not_nonempty_iff_eq_empty.mp hi)
+      rw [tsum_eq_sum h_zero]
+      have h_eq : (⋃ i, s i) = ⋃ i ∈ h_fin_support.toFinset, s i := by
+        ext x; simp [Set.Finite.mem_toFinset]
+      rw [h_eq]
+      exact Set.encard_biUnion_finset hs _
+    · -- Case 2: infinitely many nonempty, all finite
+      have h_inf_union : (⋃ i, s i).Infinite :=
+        Set.Infinite.iUnion_of_pairwise_disjoint hs h_fin_support
+      rw [Set.encard_eq_top_iff.mpr h_inf_union]
+      have : Set.Infinite {i | (s i).encard ≠ 0} := by
+        rwa [show {i | (s i).encard ≠ 0} = {i | (s i).Nonempty} from by
+          ext i; exact Set.encard_ne_zero]
+      exact (ENat.tsum_eq_top_of_ne_zero this).symm
 
-open Classical in
+theorem ENat.hasSum {α : Type u_1} {f : α → ENat} :
+    HasSum f (⨆ (s : Finset α), ∑ a ∈ s, f a) :=
+  tendsto_atTop_iSup fun _ _ => Finset.sum_le_sum_of_subset
+
+theorem ENat.summable {α : Type u_1} {f : α → ENat} :
+    Summable f :=
+  ENat.hasSum.summable
+
+-- Aristotle
+theorem continuous_ENat_toENNReal : Continuous ENat.toENNReal := by
+  refine continuous_iff_continuousAt.2 fun x => ?_;
+  induction x using WithTop.recTopCoe with
+  | top =>
+    refine ENNReal.tendsto_nhds_top ?_;
+    intro n;
+    rw [ eventually_nhds_iff ];
+    use Set.Ioi (n : ENat);
+    simp only [Set.mem_Ioi, isOpen_iff_mem_nhds];
+    exact ⟨ fun y hy => by cases y <;> aesop,
+    fun x hx => IsOpen.mem_nhds ( isOpen_Ioi ) hx, by exact WithTop.coe_lt_top _ ⟩;
+  | coe a =>
+    simp only [ContinuousAt, ENat.some_eq_coe];
+    rw [ ENat.nhds_eq_pure ];
+    · exact pure_le_nhds _;
+    · exact ENat.coe_ne_top _
+
 theorem glue [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
     [BorelSpace V]
     [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B)
     (hB : B.Nonempty)
-    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (j : ℕ) :
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
     ∫⁻ (y : V), (B ∩ f ⁻¹' {y}).encard.toENNReal ∂(μHE[finrank ℝ U]) =
     ∑' j, μHE[finrank ℝ U] (f '' (pieceSeq ht hBm hB hker j).E) := by
+  classical
   have hdiff (b : U) (hb : b ∈ B) : DifferentiableAt ℝ f b := by
     specialize hker b hb
     contrapose! hker
@@ -867,7 +946,7 @@ theorem glue [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace 
       apply Set.disjoint_of_subset Set.inter_subset_left Set.inter_subset_left
         (disjoint_pieceSeq ht hBm hB hker hij))]
     rw [← ENat.toENNRealRingHom_apply]
-    rw [Summable.map_tsum (by sorry) _ (by sorry)]
+    rw [Summable.map_tsum ENat.summable _ continuous_ENat_toENNReal]
     apply tsum_congr
     intro j
     suffices ((pieceSeq ht hBm hB hker j).E ∩ f ⁻¹' {y}).encard =
@@ -906,8 +985,140 @@ theorem glue [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace 
     rw [MeasureTheory.lintegral_indicator (hmeasurablefe j)]
     simp
 
-theorem area_formula [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V] [BorelSpace V]
-    [CompleteSpace V] (f : U → V) (B : Set U)
+theorem glue_j [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hB : B.Nonempty)
     (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
     ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet =
-    ∫⁻ (y : V), (B ∩ f ⁻¹' {y}).encard.toENNReal ∂(μHE[finrank ℝ U]) := sorry
+    ∑' j, ∫⁻ x in (pieceSeq ht hBm hB hker j).E, ENNReal.ofReal (fderiv ℝ f x).normDet := by
+  conv_lhs => rw [iUnion_pieceSeq ht hBm hB hker]
+  apply MeasureTheory.lintegral_iUnion
+  · intro i
+    apply Piece.measurablSet
+  · intro i j h
+    exact disjoint_pieceSeq ht hBm hB hker h
+
+
+theorem left [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
+    ∫⁻ (x : U) in B, ENNReal.ofReal ((fderiv ℝ f x)).normDet ≤
+    ↑t ^ (2 * finrank ℝ U) * ∫⁻ (y : V), ↑(B ∩ f ⁻¹' {y}).encard ∂μHE[finrank ℝ U] := by
+  rw [glue_j ht hBm hB hker, glue ht hBm hB hker]
+  rw [← ENNReal.tsum_mul_left]
+  apply ENNReal.tsum_le_tsum
+  intro k
+  apply area_right ht hBm hB hker
+
+theorem right [Nontrivial U] [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V]
+    [BorelSpace V]
+    [CompleteSpace V] {t : NNReal} (ht : 1 < t) {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hB : B.Nonempty)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
+    (↑t)⁻¹ ^ (2 * finrank ℝ U) * ∫⁻ (y : V), (B ∩ f ⁻¹' {y}).encard ∂μHE[finrank ℝ U] ≤
+    ∫⁻ (x : U) in B, ENNReal.ofReal (fderiv ℝ f x).normDet := by
+  rw [glue_j ht hBm hB hker, glue ht hBm hB hker]
+  rw [← ENNReal.tsum_mul_left]
+  apply ENNReal.tsum_le_tsum
+  intro k
+  apply area_left ht hBm hB hker
+
+theorem area_formula [Nontrivial U]
+    [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V] [BorelSpace V]
+    [CompleteSpace V] {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) :
+    ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet =
+    ∫⁻ y, (B ∩ f ⁻¹' {y}).encard.toENNReal ∂(μHE[finrank ℝ U]) := by
+  rcases B.eq_empty_or_nonempty with hB | hB
+  · simp [hB]
+  have hrank : 0 < finrank ℝ U := Module.finrank_pos
+  have hrank' : 0 < 2 * finrank ℝ U := by simpa using hrank
+  suffices ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet =
+      1 * ∫⁻ y, (B ∩ f ⁻¹' {y}).encard.toENNReal ∂(μHE[finrank ℝ U]) by
+    simpa
+  apply le_antisymm
+  · suffices ∀ t : ENNReal, 1 < t → ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet ≤
+        t ^ (2 * finrank ℝ U) *
+        ∫⁻ y, (B ∩ f ⁻¹' {y}).encard ∂μHE[finrank ℝ U] by
+      apply ENNReal.le_mul_of_forall_lt (by simp) (by simp)
+      intro a ha b hb
+      refine le_trans (this (a ^ (((2 * finrank ℝ U : Nat) : Real)⁻¹)) ?_) ?_
+      · apply ENNReal.one_lt_rpow (by simpa using ha)
+        simpa using hrank
+      · rw [← ENNReal.rpow_natCast, ← ENNReal.rpow_mul,
+          inv_mul_cancel₀ (by simpa using hrank.ne'), ENNReal.rpow_one]
+        grw [hb]
+    intro t
+    induction t using ENNReal.recTopCoe with
+    | top =>
+      intro ht
+      by_cases h0 : ∫⁻ (y : V), ↑(B ∩ f ⁻¹' {y}).encard ∂μHE[finrank ℝ U] = 0
+      · have h := left (show 1 < 2 by simp) hBm hB hker
+        simp_all
+      simp [hrank.ne', h0]
+    | coe t =>
+      intro ht
+      norm_cast at ht
+      apply left ht hBm hB hker
+  · suffices ∀ t : ENNReal, 1 < t → t⁻¹ ^ (2 * finrank ℝ U) *
+        ∫⁻ y, (B ∩ f ⁻¹' {y}).encard ∂μHE[finrank ℝ U] ≤
+        ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet by
+      apply ENNReal.mul_le_of_forall_lt
+      intro a ha b hb
+      refine le_trans ?_ (this (a ^ (-((2 * finrank ℝ U : Nat) : Real)⁻¹)) ?_)
+      · rw [← ENNReal.rpow_natCast, ← ENNReal.inv_rpow, ← ENNReal.rpow_mul,
+          neg_mul, inv_mul_cancel₀ (by simpa using hrank.ne'), ENNReal.rpow_neg_one,
+          inv_inv]
+        grw [hb]
+      · rw [ENNReal.rpow_neg, ← ENNReal.inv_rpow]
+        apply ENNReal.one_lt_rpow (by simpa using ha)
+        simpa using hrank
+    intro t
+    induction t using ENNReal.recTopCoe with
+    | top => simp [hrank.ne']
+    | coe t =>
+      intro ht
+      norm_cast at ht
+      apply right ht hBm hB hker
+
+theorem area_formula_injective [Nontrivial U]
+    [MeasurableSpace U] [BorelSpace U] [MeasurableSpace V] [BorelSpace V]
+    [CompleteSpace V] {f : U → V} {B : Set U} (hBm : MeasurableSet B)
+    (hker : ∀ x ∈ B, (fderiv ℝ f x).ker = ⊥) (hinjective : Set.InjOn f B) :
+    μHE[finrank ℝ U] (f '' B) = ∫⁻ x in B, ENNReal.ofReal (fderiv ℝ f x).normDet := by
+  have hdiff (b : U) (hb : b ∈ B) : DifferentiableAt ℝ f b := by
+    specialize hker b hb
+    contrapose! hker
+    simp [fderiv_zero_of_not_differentiableAt hker]
+  have hcont : ContinuousOn f B := by
+    intro b hb
+    apply ContinuousAt.continuousWithinAt
+    apply (hdiff b hb).continuousAt
+  have hmeasurable : MeasurableSet (f '' B) := by
+    apply MeasurableSet.image_of_continuousOn_injOn hBm hcont hinjective
+  rw [area_formula hBm hker, ← lintegral_indicator_one hmeasurable]
+  apply lintegral_congr
+  intro y
+  suffices (B ∩ f ⁻¹' {y}).encard = (f '' B).indicator 1 y by
+    simpa [this] using (map_indicator ENat.toENNRealRingHom (f '' B) 1 y).symm
+  by_cases hy : y ∈ f '' B
+  · rw [Set.indicator_of_mem hy, Pi.one_apply, Set.encard_eq_one]
+    simp only [Set.mem_image] at hy
+    obtain ⟨x, hx, hxy⟩ := hy
+    use x
+    apply subset_antisymm
+    · intro x' hx'
+      simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_singleton_iff] at hx'
+      simpa using hinjective hx'.1 hx (hxy.symm ▸ hx'.2)
+    · grind
+  · rw [Set.indicator_of_notMem hy]
+    rw [Set.encard_eq_zero, ← Set.disjoint_iff_inter_eq_empty, Set.disjoint_right]
+    intro fy hfy h
+    rw [Set.mem_preimage, Set.mem_singleton_iff] at hfy
+    rw [← hfy] at hy
+    simp only [Set.mem_image, not_exists, not_and] at hy
+    specialize hy _ h
+    simp at hy
