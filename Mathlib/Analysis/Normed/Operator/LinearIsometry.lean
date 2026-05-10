@@ -337,6 +337,11 @@ theorem coe_comp (g : E₂ →ₛₗᵢ[σ₂₃] E₃) (f : E →ₛₗᵢ[σ�
   rfl
 
 @[simp]
+theorem toLinearMap_comp (g : E₂ →ₛₗᵢ[σ₂₃] E₃) (f : E →ₛₗᵢ[σ₁₂] E₂) :
+    (g.comp f).toLinearMap = g.toLinearMap ∘ₛₗ f.toLinearMap :=
+  rfl
+
+@[simp]
 theorem id_comp : (id : E₂ →ₗᵢ[R₂] E₂).comp f = f :=
   ext fun _ => rfl
 
@@ -555,6 +560,10 @@ theorem toLinearIsometry_inj {f g : E ≃ₛₗᵢ[σ₁₂] E₂} :
 
 @[simp]
 theorem coe_toLinearIsometry : ⇑e.toLinearIsometry = e :=
+  rfl
+
+@[simp]
+theorem toLinearMap_toLinearIsometry : e.toLinearIsometry.toLinearMap = e.toLinearMap :=
   rfl
 
 protected theorem isometry : Isometry e :=

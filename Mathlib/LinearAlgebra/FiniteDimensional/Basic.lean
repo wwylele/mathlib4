@@ -424,6 +424,11 @@ theorem coe_ofInjectiveEndo (f : V →ₗ[K] V) (h_inj : Injective f) :
   rfl
 
 @[simp]
+theorem toLinearMap_ofInjectiveEndo (f : V →ₗ[K] V) (h_inj : Injective f) :
+    (ofInjectiveEndo f h_inj).toLinearMap = f :=
+  rfl
+
+@[simp]
 theorem ofInjectiveEndo_right_inv (f : V →ₗ[K] V) (h_inj : Injective f) :
     f * (ofInjectiveEndo f h_inj).symm = 1 :=
   LinearMap.ext <| (ofInjectiveEndo f h_inj).apply_symm_apply

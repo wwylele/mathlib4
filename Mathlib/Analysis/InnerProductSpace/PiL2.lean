@@ -1343,3 +1343,28 @@ theorem range_orthonormalBasisSingleton :
   simp
 
 end FiniteDimensional
+
+namespace LinearMap
+variable {E' : Type*} [NormedAddCommGroup E'] [InnerProductSpace 𝕜 E']
+
+/-- Weak form of polar decomposition: for finite dimensional `E`, an injective linear map
+`f : E →ₗᵢ[𝕜] E'` can be decomposed into a linear isometry `u` and a linear automorphism `p`.
+Compared to the full version of polar decomposition, this doesn't make the `p` unique and positive
+definite, but also doesn't require `E'` to be complete or `f` to be continuous.
+
+TODO: prove the full version of polar decomposition. This can be obtained by
+`p := CFC.sqrt (f.adjoint ∘L f)`. However, `ContinuousLinearMap.instStarOrderedRing` only supports
+`ℂ`, blocking this from generalizing into `RCLike`. -/
+theorem exists_linearIsometry_comp_linearEquiv [FiniteDimensional 𝕜 E] (f : E →ₗ[𝕜] E')
+    (h : f.ker = ⊥) :
+    ∃ (u : E →ₗᵢ[𝕜] E') (p : E ≃ₗ[𝕜] E), u.toLinearMap ∘ₗ p = f := by
+  have hrank : finrank 𝕜 f.range = finrank 𝕜 E :=
+    f.finrank_range_of_inj (LinearMap.ker_eq_bot.mp h)
+  let g := (stdOrthonormalBasis 𝕜 E).equiv (stdOrthonormalBasis 𝕜 f.range) (finCongr hrank.symm)
+  let p := LinearEquiv.ofInjectiveEndo (g.symm.toLinearMap ∘ₗ f.rangeRestrict)
+    (LinearMap.ker_eq_bot.mp (by simpa using h))
+  use (f.range.subtypeₗᵢ).comp g.toLinearIsometry, p
+  rw [LinearIsometry.toLinearMap_comp, LinearMap.comp_assoc]
+  simp [p]
+
+end LinearMap
