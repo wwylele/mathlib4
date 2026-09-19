@@ -8,6 +8,7 @@ module
 
 public import Mathlib.Analysis.SpecialFunctions.RegularizedHypergeometric
 
+import Mathlib.Analysis.Complex.LocallyUniformLimit
 import Mathlib.Analysis.SpecialFunctions.Complex.Analytic
 
 /-!
@@ -202,5 +203,79 @@ theorem mul_deriv_besselJ_eq_besselJ_add_one_int (a : ℤ) (x : ℂ) :
 theorem mul_deriv_besselJ_eq_besselJ_sub_one_int (a : ℤ) (x : ℂ) :
     x * deriv (J a) x = x * J (a - 1) x - a * J a x := by
   linear_combination two_mul_self_mul_besselJ a x + mul_deriv_besselJ_eq_besselJ_add_one_int a x
+
+theorem norm_besselJ_le_exp {a : ℂ} (ha : 0 ≤ a.re) (x : ℂ) :
+    ‖J a x‖ ≤ ‖Gamma (a + 1)‖⁻¹ * ‖(x / 2) ^ a‖ * Real.exp (‖x / 2‖ ^ 2) := by
+  unfold besselJ
+  grw [norm_mul, regularizedHGFun_le_exp_of_one_le_re (by simpa using ha)]
+  apply le_of_eq
+  simp
+  ring
+
+theorem norm_besselJ_le_exp_int (a : ℤ) (x : ℂ) :
+    ‖J a x‖ ≤ (a.natAbs ! : ℝ)⁻¹ * ‖x / 2‖ ^ a.natAbs * Real.exp (‖x / 2‖ ^ 2) := by
+  wlog! ha : 0 ≤ a
+  · specialize this (-a) (-x) (by simpa using ha.le)
+    simpa [besselJ_neg_comm] using this
+  obtain ⟨a, rfl⟩ := Int.eq_ofNat_of_zero_le ha
+  grw [norm_besselJ_le_exp (by simp)]
+  simp [Gamma_nat_eq_factorial]
+
+theorem exists_norm_besselJ_le_exp_int {s : Set ℂ} (hs : Bornology.IsBounded s) :
+    ∃ (u v : ℝ), ∀ (a : ℤ), ∀ x ∈ s, ‖J a x‖ ≤ (a.natAbs ! : ℝ)⁻¹ * u ^ a.natAbs * v := by
+  obtain ⟨x, hx⟩ := hs.exists_norm_le
+  use ‖x / 2‖, Real.exp (‖x / 2‖ ^ 2)
+  intro a y hy
+  have hy' : ‖y / 2‖ ≤ ‖x / 2‖ := by
+    grw [norm_div, hx y hy, le_abs_self x]
+    simp
+  grw [norm_besselJ_le_exp_int]
+  gcongr
+
+private theorem summable_aux (u v : ℝ) :
+    Summable fun (a : ℤ) ↦ (a.natAbs ! : ℝ)⁻¹ * u ^ a.natAbs * v := by
+  simpa [summable_int_iff_summable_nat_and_neg]
+    using (NormedSpace.exp_series_hasSum_exp' (𝕂 := ℝ) u).summable.mul_right v
+
+-- This is private because `tsum_besselJ` introduced later will close the goal
+private theorem differentiableAt_tsum_besselJ (x : ℂ) :
+    DifferentiableAt ℂ (fun x ↦ ∑' a : ℤ, J a x) x := by
+  obtain ⟨u, v, h⟩ := exists_norm_besselJ_le_exp_int (Metric.isBounded_ball (x := x) (r := 1))
+  refine (differentiableOn_tsum_of_summable_norm (summable_aux u v) (fun a x hx ↦ ?_)
+    Metric.isOpen_ball h).differentiableAt (Metric.ball_mem_nhds _ (by simp))
+  exact (analyticAt_besselJ_int a x).differentiableWithinAt
+
+theorem summable_besselJ (x : ℂ) : Summable fun (a : ℤ) ↦ J a x := by
+  apply (summable_aux ‖x / 2‖ (Real.exp (‖x / 2‖ ^ 2))).of_norm_bounded
+  intro a
+  apply norm_besselJ_le_exp_int
+
+-- This is private because `tsum_besselJ` introduced later will close the goal
+private theorem deriv_tsum_besselJ (x : ℂ) : deriv (fun x ↦ ∑' a : ℤ, J a x) x = 0 := calc
+  _ = ∑' a : ℤ, deriv (J a) x := by
+    obtain ⟨u, v, h⟩ := exists_norm_besselJ_le_exp_int (Metric.isBounded_ball (x := x) (r := 1))
+    refine (hasSum_deriv_of_summable_norm (summable_aux u v) ?_ Metric.isOpen_ball h (by simp))
+      |>.tsum_eq.symm
+    exact fun a x hx ↦ (analyticAt_besselJ_int a x).differentiableWithinAt
+  _ = 2⁻¹ * ∑' a : ℤ, 2 * deriv (J a) x := by simp [tsum_mul_left]
+  _ = 2⁻¹ * ∑' a : ℤ, (J (a - 1) x - J (a + 1) x) := by simp [two_mul_deriv_besselJ_int]
+  _ = 2⁻¹ * (∑' a : ℤ, J (a - 1) x - ∑' a : ℤ, J (a + 1) x) := by
+    congrm _ * $(Summable.tsum_sub ?_ ?_)
+    · exact_mod_cast (Equiv.subRight 1).summable_iff.mpr (summable_besselJ x)
+    · exact_mod_cast (Equiv.addRight 1).summable_iff.mpr (summable_besselJ x)
+  _ = _ := by
+    conv_lhs =>
+      right
+      conv => left; rw [← (Equiv.addRight 1).tsum_eq]
+      conv => right; rw [← (Equiv.addRight (-1)).tsum_eq]
+    simp
+
+@[simp, dlmf 10.12.E4 "Use `Complex.besselJ_neg_int` to get the equation in DLMF."]
+theorem tsum_besselJ (x : ℂ) : ∑' a : ℤ, J a x = 1 := by
+  simp [is_const_of_deriv_eq_zero differentiableAt_tsum_besselJ deriv_tsum_besselJ x 0,
+    besselJ_zero]
+
+theorem hasSum_besselJ (x : ℂ) : HasSum (fun (a : ℤ) ↦ J a x) 1 := by
+  simpa using (summable_besselJ x).hasSum
 
 end Complex
