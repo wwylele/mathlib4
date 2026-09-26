@@ -128,34 +128,26 @@ theorem four_mul_volume_mul_circumradius :
 
 local notation "w" => excenterWeightsFace
 
-private theorem dist_excenter_circumcenter_sq {signs : Finset (Fin 3)}
+theorem dist_excenter_sq (p : P) {signs : Finset (Fin 3)}
     (hsigns : signs = ∅ ∨ signs = {0} ∨ signs = {1} ∨ signs = {2}) :
-    dist (t.excenter signs) t.circumcenter ^ 2 =
-      t.circumradius * (t.circumradius - (if signs = ∅ then 1 else -1) * 2 * t.exradius signs) := by
+    dist (t.excenter signs) p ^ 2 = ∑ i, t.excenterWeights signs i * dist (t.points i) p ^ 2 +
+      (if signs = ∅ then -1 else 1) * 2 * t.circumradius * t.exradius signs := by
   have h0 : 0 < ∑ i, w t signs i := by
     rcases hsigns with rfl | hsigns
     · refine Finset.sum_pos (fun i _ ↦ ?_) (by simp)
       simp [faceOpposite_point_eq_point_succAbove, t.independent.injective.ne]
     · rcases hsigns with rfl | rfl | rfl <;> apply sum_excenterWeightsFace_singleton_pos
+  rw [t.excenter_eq_affineCombination, dist_affineCombination_const_sq _ _
+    (t.sum_excenterWeights_eq_one_iff.mpr (t.excenterExists _))]
+  congrm _ + ?_
   calc
-    _ = ∑ i, (w t signs i / ∑ j, w t signs j) * t.circumradius ^ 2 -
-        (∑ i, ∑ j, (w t signs i / ∑ j, w t signs j) * (w t signs j / ∑ j, w t signs j) *
-        dist (t.points i) (t.points j) ^ 2) / 2 := by
-      simp_rw [t.excenter_eq_affineCombination, dist_affineCombination_const_sq _ _
-        (t.sum_excenterWeights_eq_one_iff.mpr (t.excenterExists _)),
-        t.excenterWeights_eq_excenterWeightsFace_div, t.dist_circumcenter_eq_circumradius]
-    _ = ∑ i, (w t signs i / ∑ j, w t signs j) * t.circumradius ^ 2 -
-        (∑ i, ∑ j, w t signs i * w t signs j * dist (t.points i) (t.points j) ^ 2 /
-        (∑ j, w t signs j) ^ 2) / 2 :=
-      congr(_ - (∑ i, ∑ j, $(by ring)) / 2)
-    _ = t.circumradius ^ 2 - (∑ i, ∑ j, w t signs i * w t signs j *
-        dist (t.points i) (t.points j) ^ 2) / 2 / (∑ i, w t signs i) ^ 2 := by
-      simp_rw [← Finset.sum_mul, ← Finset.sum_div]
-      field
-    _ = t.circumradius ^ 2 - (if signs = ∅ then 1 else -1) *
+    _ = -((∑ i, ∑ j, w t signs i * w t signs j * dist (t.points i) (t.points j) ^ 2) / 2 /
+        (∑ i, w t signs i) ^ 2) := by
+      simp_rw [t.excenterWeights_eq_excenterWeightsFace_div, Finset.sum_div]
+      congrm -∑ i, ∑ j, $(by ring)
+    _ = (if signs = ∅ then -1 else 1) *
         (dist (t.points 0) (t.points 1) * dist (t.points 0) (t.points 2) *
         dist (t.points 1) (t.points 2)) * (∑ i, w t signs i) / (∑ i, w t signs i) ^ 2 := by
-      congrm _ - ?_ / _
       have : (Finset.univ : Finset (Fin 3)) = {0, 1, 2} := by grind
       rcases hsigns with rfl | rfl | rfl | rfl
       all_goals
@@ -168,6 +160,14 @@ private theorem dist_excenter_circumcenter_sq {signs : Finset (Fin 3)}
         (t.excenterExists signs).volume_eq_exradius_mul, abs_of_nonneg h0.le]
       field
 
+theorem dist_excenter_circumcenter_sq {signs : Finset (Fin 3)}
+    (hsigns : signs = ∅ ∨ signs = {0} ∨ signs = {1} ∨ signs = {2}) :
+    dist (t.excenter signs) t.circumcenter ^ 2 =
+      t.circumradius * (t.circumradius + (if signs = ∅ then -1 else 1) * 2 * t.exradius signs) := by
+  simp_rw [t.dist_excenter_sq t.circumcenter hsigns, dist_circumcenter_eq_circumradius,
+    ← Finset.sum_mul, t.sum_excenterWeights_eq_one_iff.mpr (t.excenterExists _)]
+  ring
+
 /-- **Euler's theorem in geometry** for excenter. -/
 theorem dist_excenter_singleton_circumcenter_sq (i : Fin 3) :
     dist (t.excenter {i}) t.circumcenter ^ 2 =
@@ -179,7 +179,7 @@ theorem dist_excenter_singleton_circumcenter_sq (i : Fin 3) :
 theorem dist_incenter_circumcenter_sq :
     dist t.incenter t.circumcenter ^ 2 = t.circumradius * (t.circumradius - 2 * t.inradius) := by
   rw [← excenter_empty, t.dist_excenter_circumcenter_sq (by grind)]
-  simp
+  simp [← sub_eq_add_neg]
 
 /-- **Euler inequality**: the inradius of a triangle is not larger than half of the circumradius. -/
 theorem two_mul_inradius_le_circumradius : 2 * t.inradius ≤ t.circumradius := by
