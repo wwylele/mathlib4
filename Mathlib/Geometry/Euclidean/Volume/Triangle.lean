@@ -23,7 +23,7 @@ This file collects formulas for the area of a triangle and other related results
 
 * `Affine.Triangle.volume_eq_height_mul`: $S = \frac{1}{2}hb$
 * `Affine.Triangle.volume_eq_mul_sin`: $S = \frac{1}{2}ab \sin C$3
-* `Affine.Triangle.volume_eq_heron`: Heron's formula.
+* `Affine.Triangle.volume_eq_sqrt_mul_sub_mul_sub_mul_sub`: Heron's formula.
 * `Affine.Triangle.volume_eq_mul_div_circumradius`: $S = abc/(4R)$ where $R$ is the circumradius.
 * `Affine.Triangle.dist_excenter_singleton_circumcenter_sq`:
   Euler's theorem in geometry for excenter.
@@ -58,7 +58,7 @@ theorem volume_eq_mul_sin :
 `a`, `b`, and `c` is `√(s * (s - a) * (s - b) * (s - c))` where `s = (a + b + c) / 2` is the
 semiperimeter. We show this by equating this formula to `2⁻¹ * a * c * sin γ`, where `γ` is the
 angle opposite the side `b`. -/
-theorem _root_.EuclideanGeometry.mul_sin_eq_heron (p₁ p₂ p₃ : P) :
+theorem _root_.EuclideanGeometry.mul_sin_eq_sqrt_mul_sub_mul_sub_mul_sub (p₁ p₂ p₃ : P) :
     let a := dist p₁ p₂
     let b := dist p₁ p₃
     let c := dist p₂ p₃
@@ -101,13 +101,26 @@ include h₁₂ h₁₃ h₂₃ in
 /-- **Heron's formula** for triangle. The area of a triangle with side lengths
 `a`, `b`, and `c` is `√(s * (s - a) * (s - b) * (s - c))` where `s = (a + b + c) / 2` is the
 semiperimeter. -/
-theorem volume_eq_heron :
+theorem volume_eq_sqrt_mul_sub_mul_sub_mul_sub :
     let a := dist (t.points i₁) (t.points i₂)
     let b := dist (t.points i₁) (t.points i₃)
     let c := dist (t.points i₂) (t.points i₃)
     let s := (a + b + c) / 2
     t.volume = √(s * (s - a) * (s - b) * (s - c)) := by
-  rw [t.volume_eq_mul_sin h₁₂ h₁₃ h₂₃, mul_sin_eq_heron]
+  rw [t.volume_eq_mul_sin h₁₂ h₁₃ h₂₃, mul_sin_eq_sqrt_mul_sub_mul_sub_mul_sub]
+
+include h₁₂ h₁₃ h₂₃ in
+theorem volume_sq_eq_mul_sub_mul_sub_mul_sub :
+    let a := dist (t.points i₁) (t.points i₂)
+    let b := dist (t.points i₁) (t.points i₃)
+    let c := dist (t.points i₂) (t.points i₃)
+    let s := (a + b + c) / 2
+    t.volume ^ 2 = (s * (s - a) * (s - b) * (s - c)) := by
+  rw [t.volume_eq_sqrt_mul_sub_mul_sub_mul_sub h₁₂ h₁₃ h₂₃, sq_sqrt]
+  by_contra! h
+  have := sqrt_eq_zero_of_nonpos h.le
+  rw [← t.volume_eq_sqrt_mul_sub_mul_sub_mul_sub h₁₂ h₁₃ h₂₃] at this
+  simp [t.volume_pos.ne'] at this
 
 include h₁₂ h₁₃ h₂₃ in
 /-- Triangle area is equal to $abc / (4R)$, where $a$, $b$, and $c$ are side length and $R$ is the
@@ -128,15 +141,19 @@ theorem four_mul_volume_mul_circumradius :
 
 local notation "w" => excenterWeightsFace
 
+theorem sum_excenterWeightsFace_pos {signs : Finset (Fin 3)}
+    (hsigns : signs = ∅ ∨ signs = {0} ∨ signs = {1} ∨ signs = {2}) :
+  0 < ∑ i, w t signs i := by
+  rcases hsigns with rfl | hsigns
+  · refine Finset.sum_pos (fun i _ ↦ ?_) (by simp)
+    simp [faceOpposite_point_eq_point_succAbove, t.independent.injective.ne]
+  · rcases hsigns with rfl | rfl | rfl <;> apply sum_excenterWeightsFace_singleton_pos
+
 theorem dist_excenter_sq (p : P) {signs : Finset (Fin 3)}
     (hsigns : signs = ∅ ∨ signs = {0} ∨ signs = {1} ∨ signs = {2}) :
     dist (t.excenter signs) p ^ 2 = ∑ i, t.excenterWeights signs i * dist (t.points i) p ^ 2 +
       (if signs = ∅ then -1 else 1) * 2 * t.circumradius * t.exradius signs := by
-  have h0 : 0 < ∑ i, w t signs i := by
-    rcases hsigns with rfl | hsigns
-    · refine Finset.sum_pos (fun i _ ↦ ?_) (by simp)
-      simp [faceOpposite_point_eq_point_succAbove, t.independent.injective.ne]
-    · rcases hsigns with rfl | rfl | rfl <;> apply sum_excenterWeightsFace_singleton_pos
+  have h0 := t.sum_excenterWeightsFace_pos hsigns
   rw [t.excenter_eq_affineCombination, dist_affineCombination_const_sq _ _
     (t.sum_excenterWeights_eq_one_iff.mpr (t.excenterExists _))]
   congrm _ + ?_
