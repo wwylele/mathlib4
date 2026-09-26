@@ -6,8 +6,11 @@ Authors: Weiyi Wang, Matt Kempster
 module
 
 public import Mathlib.Geometry.Euclidean.Angle.Unoriented.Affine
-public import Mathlib.Geometry.Euclidean.Volume.Def
+public import Mathlib.Geometry.Euclidean.Circumcenter
+public import Mathlib.Geometry.Euclidean.NinePointCircle
+public import Mathlib.Geometry.Euclidean.Volume.Incenter
 
+import Mathlib.Geometry.Euclidean.Angle.Sphere
 import Mathlib.Geometry.Euclidean.Triangle
 import Mathlib.Geometry.Euclidean.Volume.Basic
 
@@ -21,6 +24,10 @@ This file collects formulas for the area of a triangle and other related results
 * `Affine.Triangle.volume_eq_height_mul`: $S = \frac{1}{2}hb$
 * `Affine.Triangle.volume_eq_mul_sin`: $S = \frac{1}{2}ab \sin C$3
 * `Affine.Triangle.volume_eq_heron`: Heron's formula.
+* `Affine.Triangle.volume_eq_mul_div_circumradius`: $S = abc/(4R)$ where $R$ is the circumradius.
+* `Affine.Triangle.dist_excenter_singleton_circumcenter_sq`:
+  Euler's theorem in geometry for excenter.
+* `Affine.Triangle.dist_incenter_circumcenter_sq`: Euler's theorem in geometry for incenter.
 -/
 
 public section
@@ -101,5 +108,87 @@ theorem volume_eq_heron :
     let s := (a + b + c) / 2
     t.volume = √(s * (s - a) * (s - b) * (s - c)) := by
   rw [t.volume_eq_mul_sin h₁₂ h₁₃ h₂₃, mul_sin_eq_heron]
+
+include h₁₂ h₁₃ h₂₃ in
+/-- Triangle area is equal to $abc / (4R)$, where $a$, $b$, and $c$ are side length and $R$ is the
+circumradius. -/
+theorem volume_eq_mul_div_circumradius :
+    t.volume = dist (t.points i₁) (t.points i₂) * dist (t.points i₁) (t.points i₃) *
+      dist (t.points i₂) (t.points i₃) / (4 * t.circumradius) := by
+  have : dist (t.points i₁) (t.points i₃) ≠ 0 := by simpa using t.independent.injective.ne h₁₃
+  rw [t.volume_eq_mul_sin h₁₂ h₁₃ h₂₃, ← t.dist_div_sin_angle_div_two_eq_circumradius h₁₂ h₁₃ h₂₃]
+  field
+
+include h₁₂ h₁₃ h₂₃ in
+theorem four_mul_volume_mul_circumradius :
+    4 * t.volume * t.circumradius = dist (t.points i₁) (t.points i₂) *
+      dist (t.points i₁) (t.points i₃) * dist (t.points i₂) (t.points i₃) := by
+  have : t.circumradius ≠ 0 := t.circumradius_pos.ne'
+  simp [t.volume_eq_mul_div_circumradius h₁₂ h₁₃ h₂₃, field]
+
+local notation "w" => excenterWeightsFace
+
+private theorem dist_excenter_circumcenter_sq {signs : Finset (Fin 3)}
+    (hsigns : signs = ∅ ∨ signs = {0} ∨ signs = {1} ∨ signs = {2}) :
+    dist (t.excenter signs) t.circumcenter ^ 2 =
+      t.circumradius * (t.circumradius - (if signs = ∅ then 1 else -1) * 2 * t.exradius signs) := by
+  have h0 : 0 < ∑ i, w t signs i := by
+    rcases hsigns with rfl | hsigns
+    · refine Finset.sum_pos (fun i _ ↦ ?_) (by simp)
+      simp [faceOpposite_point_eq_point_succAbove, t.independent.injective.ne]
+    · rcases hsigns with rfl | rfl | rfl <;> apply sum_excenterWeightsFace_singleton_pos
+  calc
+    _ = ∑ i, (w t signs i / ∑ j, w t signs j) * t.circumradius ^ 2 -
+        (∑ i, ∑ j, (w t signs i / ∑ j, w t signs j) * (w t signs j / ∑ j, w t signs j) *
+        dist (t.points i) (t.points j) ^ 2) / 2 := by
+      simp_rw [t.excenter_eq_affineCombination, dist_affineCombination_const_sq _ _
+        (t.sum_excenterWeights_eq_one_iff.mpr (t.excenterExists _)),
+        t.excenterWeights_eq_excenterWeightsFace_div, t.dist_circumcenter_eq_circumradius]
+    _ = ∑ i, (w t signs i / ∑ j, w t signs j) * t.circumradius ^ 2 -
+        (∑ i, ∑ j, w t signs i * w t signs j * dist (t.points i) (t.points j) ^ 2 /
+        (∑ j, w t signs j) ^ 2) / 2 :=
+      congr(_ - (∑ i, ∑ j, $(by ring)) / 2)
+    _ = t.circumradius ^ 2 - (∑ i, ∑ j, w t signs i * w t signs j *
+        dist (t.points i) (t.points j) ^ 2) / 2 / (∑ i, w t signs i) ^ 2 := by
+      simp_rw [← Finset.sum_mul, ← Finset.sum_div]
+      field
+    _ = t.circumradius ^ 2 - (if signs = ∅ then 1 else -1) *
+        (dist (t.points 0) (t.points 1) * dist (t.points 0) (t.points 2) *
+        dist (t.points 1) (t.points 2)) * (∑ i, w t signs i) / (∑ i, w t signs i) ^ 2 := by
+      congrm _ - ?_ / _
+      have : (Finset.univ : Finset (Fin 3)) = {0, 1, 2} := by grind
+      rcases hsigns with rfl | rfl | rfl | rfl
+      all_goals
+      simp [this, excenterWeightsFace, faceOpposite_point_eq_point_succAbove,
+        Fin.succAbove, dist_comm (t.points 1) (t.points 0), dist_comm (t.points 2) (t.points 1),
+        dist_comm (t.points 2) (t.points 0)]
+      ring
+    _ = _ := by
+      rw [← t.four_mul_volume_mul_circumradius (by simp) (by simp) (by simp),
+        (t.excenterExists signs).volume_eq_exradius_mul, abs_of_nonneg h0.le]
+      field
+
+/-- **Euler's theorem in geometry** for excenter. -/
+theorem dist_excenter_singleton_circumcenter_sq (i : Fin 3) :
+    dist (t.excenter {i}) t.circumcenter ^ 2 =
+      t.circumradius * (t.circumradius + 2 * t.exradius {i}) := by
+  rw [t.dist_excenter_circumcenter_sq (by grind)]
+  simp
+
+/-- **Euler's theorem in geometry** for incenter. -/
+theorem dist_incenter_circumcenter_sq :
+    dist t.incenter t.circumcenter ^ 2 = t.circumradius * (t.circumradius - 2 * t.inradius) := by
+  rw [← excenter_empty, t.dist_excenter_circumcenter_sq (by grind)]
+  simp
+
+/-- **Euler inequality**: the inradius of a triangle is not larger than half of the circumradius. -/
+theorem two_mul_inradius_le_circumradius : 2 * t.inradius ≤ t.circumradius := by
+  have := sq_nonneg (dist t.incenter t.circumcenter)
+  rw [dist_incenter_circumcenter_sq] at this
+  simpa using nonneg_of_mul_nonneg_right this (t.circumradius_pos)
+
+theorem inradius_le_ninePointCircle_radius : t.inradius ≤ t.ninePointCircle.radius := by
+  grw [ninePointCircle_radius, ← two_mul_inradius_le_circumradius]
+  simp
 
 end Affine.Triangle
