@@ -191,6 +191,18 @@ theorem arg_real_mul (x : ℂ) {r : ℝ} (hr : 0 < r) : arg (r * x) = arg x := b
 theorem arg_mul_real {r : ℝ} (hr : 0 < r) (x : ℂ) : arg (x * r) = arg x :=
   mul_comm x r ▸ arg_real_mul x hr
 
+theorem arg_div_ofReal (x : ℂ) {r : ℝ} (hr : 0 < r) : arg (x / r) = arg x := by
+  rw [div_eq_mul_inv, ← ofReal_inv, arg_mul_real]
+  simpa using hr
+
+theorem arg_div_natCast (x : ℂ) {r : ℕ} (hr : r ≠ 0) : arg (x / r) = arg x := by
+  rw [← ofReal_natCast, arg_div_ofReal]
+  simp [Nat.pos_iff_ne_zero, hr]
+
+@[simp]
+theorem arg_div_ofNat (x : ℂ) (r : ℕ) [r.AtLeastTwo] : arg (x / ofNat(r)) = arg x :=
+  arg_div_natCast x (Nat.AtLeastTwo.toNeZero r).ne
+
 theorem arg_eq_arg_iff {x y : ℂ} (hx : x ≠ 0) (hy : y ≠ 0) :
     arg x = arg y ↔ (‖y‖ / ‖x‖ : ℂ) * x = y := by
   simp only [ext_norm_arg_iff, norm_mul, norm_div, norm_real, norm_norm,
