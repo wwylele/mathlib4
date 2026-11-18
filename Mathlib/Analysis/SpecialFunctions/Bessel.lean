@@ -6,6 +6,7 @@ Authors: Weiyi Wang
 
 module
 
+public import Mathlib.Analysis.Fourier.AddCircle
 public import Mathlib.Analysis.SpecialFunctions.RegularizedHypergeometric
 
 import Mathlib.Analysis.Complex.LocallyUniformLimit
@@ -38,12 +39,12 @@ $J_a(0) = 0$ for all complex $a \ne 0$. For $a = 0$, we have $J_0(0) = 1$.
 
 * Bessel function of the second kind
 * Differential equations
-* Bessel's integrals
 -/
 
 @[expose] public noncomputable section
 
 open Nat FormalMultilinearSeries Topology
+open scoped Real ComplexConjugate
 
 namespace Complex
 
@@ -286,5 +287,71 @@ theorem tsum_besselJ_mul_pow (x : ℂ) {t : ℂ} (ht : t ≠ 0) :
 theorem hasSum_besselJ_mul_pow (x : ℂ) {t : ℂ} (ht : t ≠ 0) :
     HasSum (fun a : ℤ ↦ J a x * t ^ a) (exp (x / 2 * (t - t⁻¹))) :=
   (summable_besselJ_mul_pow x t).hasSum_iff.mpr (tsum_besselJ_mul_pow x ht)
+
+theorem hasSum_besselJ_mul_exp (x t : ℂ) :
+    HasSum (fun a : ℤ ↦ J a x * exp (a * t * I)) (exp (x * sin t * I)) := by
+  convert hasSum_besselJ_mul_pow x (exp_ne_zero (t * I)) using 2
+  · rw [mul_assoc, exp_intCast_mul]
+  calc x * sin t * I
+    _ = x * (exp (-t * I) - exp (t * I)) * I ^ 2 / 2 := by grind [two_sin]
+    _ = _ := by
+      rw [I_sq, neg_mul, exp_neg]
+      ring
+
+theorem besselJ_eq_fourierCoeffOn (a : ℤ) (x : ℂ) :
+    J a x = fourierCoeffOn Real.two_pi_pos (fun t ↦ exp (x * sin t * I)) a := by
+  rw [eq_comm, fourierCoeffOn]
+  revert a
+  have : Fact (0 < 2 * π - 0) := ⟨by simp [Real.pi_pos]⟩
+  refine funext_iff.mp <| fourierCoeff_eq_of_hasSum fun t ↦ ?_
+  obtain ⟨t, ht, rfl⟩ := AddCircle.eq_coe_Ioc t
+  rw [AddCircle.liftIoc_coe_apply (by simpa using ht)]
+  convert hasSum_besselJ_mul_exp x t
+  simp
+  field_simp
+
+theorem besselJ_eq_integral_exp (a : ℤ) (x : ℂ) :
+    J a x = (2 * π : ℂ)⁻¹ * ∫ t in 0..(2 * π), exp ((x * sin t - a * t) * I) := by
+  rw [besselJ_eq_fourierCoeffOn, fourierCoeffOn_eq_integral, real_smul]
+  congrm $(by simp) * ∫ t in 0..(2 * π), ?_
+  suffices conj (exp (2 * π * I * a * t / (2 * π))) * exp (x * sin t * I) =
+    exp ((x * sin t - a * t) * I) by simpa
+  calc
+    _ = conj (exp (I * a * t)) * exp (x * sin t * I) := by field_simp
+    _ = exp (-(I * a * t) + x * sin t * I) := by simp [← exp_conj, ← exp_add]
+    _ = _ := congr(exp $(by ring))
+
+/-- Integral representation of $J_a(x)$ for integer $a$. -/
+@[dlmf 10.9.E2]
+theorem besselJ_eq_integral_cos (a : ℤ) (x : ℂ) :
+    J a x = (π : ℂ)⁻¹ * ∫ t in 0..π, cos (x * sin t - a * t) := calc
+  _ = (J a x + J (-a : ℤ) (-x)) / 2 := by
+    push_cast
+    grind [besselJ_neg_comm, neg_neg]
+  _ = (2 * π : ℂ)⁻¹ *
+      (∫ t in 0..(2 * π), exp ((x * sin t - a * t) * I) + exp (-(x * sin t - a * t) * I)) / 2 := by
+    rw [intervalIntegral.integral_add (Continuous.intervalIntegrable (by fun_prop) _ _)
+      (Continuous.intervalIntegrable (by fun_prop) _ _), mul_add, besselJ_eq_integral_exp,
+      besselJ_eq_integral_exp]
+    push_cast
+    congrm (_ + _ * ∫ t in _.._, exp $(by ring)) / 2
+  _ = (2 * π : ℂ)⁻¹ * ∫ t in 0..(2 * π), cos (x * sin t - a * t) := by
+    simp_rw [← two_cos, intervalIntegral.integral_const_mul]
+    ring
+  _ = (2 * π : ℂ)⁻¹ * ((∫ t in 0..π, cos (x * sin t - a * t)) +
+      ∫ t in (-π + 2 * π)..(-0 + 2 * π), cos (x * sin t - a * t)) := by
+    congrm _ * ?_
+    rw [neg_zero, zero_add, two_mul, neg_add_cancel_left,
+      intervalIntegral.integral_add_adjacent_intervals
+      (Continuous.intervalIntegrable (by fun_prop) _ _)
+      (Continuous.intervalIntegrable (by fun_prop) _ _)]
+  _ = (2 * π : ℂ)⁻¹ * ((∫ t in 0..π, cos (x * sin t - a * t)) +
+      ∫ t in 0..π, cos (x * sin t - a * t)) := by
+    rw [← intervalIntegral.integral_comp_add_right, ← intervalIntegral.integral_comp_neg]
+    congr with t
+    push_cast
+    rw [sin_add_two_pi, sin_neg, mul_add, ← sub_sub, cos_sub_int_mul_two_pi, ← cos_neg]
+    congrm cos $(by ring)
+  _ = _ := by ring
 
 end Complex
